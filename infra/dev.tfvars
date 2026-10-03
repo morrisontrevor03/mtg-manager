@@ -26,7 +26,7 @@ lambda_reserved_concurrency = -1
 # "Sign in with Google". Empty until a Google OAuth client exists; see
 # docs/accounts.md. The client id is public; its secret comes from the
 # GOOGLE_CLIENT_SECRET GitHub secret (TF_VAR_google_client_secret).
-google_client_id = "377594108583-7gl9o994k54nm1lih0fn587n59is56p2.apps.googleusercontent.com"
+google_client_id = "377594108583-f4uaqoufcmfvo9rdj6cgm03ppc2ib168.apps.googleusercontent.com"
 
 # Off on purpose until the async rebuild; see infra/README.md.
 enable_deck_builder = false
