@@ -50,13 +50,14 @@ export interface AddOwnedInput {
   notes?: string;
 }
 
-/** Add copies of a card to the collection, merging with any existing (card, foil) row. */
-export async function addOwnedCard(input: AddOwnedInput) {
+/** Add copies of a card to a user's collection, merging with any existing (card, foil) row. */
+export async function addOwnedCard(userId: string, input: AddOwnedInput) {
   const quantity = Math.max(1, Math.trunc(input.quantity ?? 1));
   const foil = input.foil ?? false;
   return db.collectionItem.upsert({
-    where: { cardId_foil: { cardId: input.cardId, foil } },
+    where: { userId_cardId_foil: { userId, cardId: input.cardId, foil } },
     create: {
+      userId,
       cardId: input.cardId,
       foil,
       quantity,
@@ -68,22 +69,25 @@ export async function addOwnedCard(input: AddOwnedInput) {
   });
 }
 
-/** All owned cards, one entry per (card, foil) row. */
-export async function getOwnedCards(): Promise<OwnedCard[]> {
-  const items = await db.collectionItem.findMany({ include: { card: true } });
+/** All of a user's owned cards, one entry per (card, foil) row. */
+export async function getOwnedCards(userId: string): Promise<OwnedCard[]> {
+  const items = await db.collectionItem.findMany({ where: { userId }, include: { card: true } });
   return items.map((it) => toOwnedCard(it.card, it.quantity, it.foil));
 }
 
 /** Owned cards that are legal in the given format (ignores colour identity). */
-export async function getFormatLegalOwnedCards(format: Format): Promise<OwnedCard[]> {
-  const all = await getOwnedCards();
+export async function getFormatLegalOwnedCards(
+  userId: string,
+  format: Format,
+): Promise<OwnedCard[]> {
+  const all = await getOwnedCards(userId);
   const key = format === "commander" ? "commander" : "standard";
   return all.filter((c) => c.legalities[key] === "legal");
 }
 
 /** Owned legendary creatures that are Commander-legal — candidate commanders. */
-export async function getCommanderCandidates(): Promise<OwnedCard[]> {
-  const legal = await getFormatLegalOwnedCards("commander");
+export async function getCommanderCandidates(userId: string): Promise<OwnedCard[]> {
+  const legal = await getFormatLegalOwnedCards(userId, "commander");
   return legal
     .filter((c) => {
       const t = c.typeLine.toLowerCase();

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/authClient";
 
 export function DeckActions({
   deckId,
@@ -24,7 +25,7 @@ export function DeckActions({
 
   async function patch(body: Record<string, unknown>) {
     setBusy(true);
-    await fetch(`/api/decks/${deckId}`, {
+    await apiFetch(`/api/decks/${deckId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -37,7 +38,7 @@ export function DeckActions({
   async function remove() {
     if (!confirm("Delete this deck?")) return;
     setBusy(true);
-    await fetch(`/api/decks/${deckId}`, { method: "DELETE" });
+    await apiFetch(`/api/decks/${deckId}`, { method: "DELETE" });
     router.push("/decks");
   }
 

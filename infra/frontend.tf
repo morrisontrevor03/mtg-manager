@@ -42,7 +42,9 @@ locals {
     webmanifest = "application/manifest+json"
   }
 
-  site_files = fileset(local.site_dir, "**")
+  # auth-config.json is written by auth.tf from live Cognito ids. A copy left in
+  # public/ for local development must not be uploaded over it.
+  site_files = setsubtract(fileset(local.site_dir, "**"), ["auth-config.json"])
 }
 
 # --- Bucket ---------------------------------------------------------------

@@ -1,11 +1,13 @@
 import { db } from "@/lib/db";
 import { handle, ok } from "@/lib/http";
+import { requireUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-export function GET() {
+export function GET(req: Request) {
   return handle(async () => {
     const decks = await db.deck.findMany({
+      where: { userId: await requireUser(req) },
       orderBy: { updatedAt: "desc" },
       include: {
         commander: { select: { name: true, imageUri: true } },

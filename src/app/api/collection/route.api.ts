@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { handle, ok, badRequest } from "@/lib/http";
+import { requireUser } from "@/lib/auth";
 import { addOwnedCard } from "@/lib/collection";
 import { resolveByName, upsertCard } from "@/lib/scryfall";
 
@@ -8,6 +9,7 @@ export const runtime = "nodejs";
 
 export function GET(req: Request) {
   return handle(async () => {
+    const userId = await requireUser(req);
     const url = new URL(req.url);
     const search = url.searchParams.get("search")?.trim();
     // The collection page asks for 500 at once: it renders the whole collection
@@ -18,8 +20,8 @@ export function GET(req: Request) {
     // `mode: "insensitive"` keeps Postgres `contains` case-insensitive, matching
     // the behaviour the UI relies on.
     const where = search
-      ? { card: { is: { name: { contains: search, mode: "insensitive" as const } } } }
-      : {};
+      ? { userId, card: { is: { name: { contains: search, mode: "insensitive" as const } } } }
+      : { userId };
 
     const [items, total] = await Promise.all([
       db.collectionItem.findMany({
@@ -70,12 +72,13 @@ const AddBody = z.object({
 
 export function POST(req: Request) {
   return handle(async () => {
+    const userId = await requireUser(req);
     const body = AddBody.parse(await req.json());
     const sc = await resolveByName(body.name, body.set);
     if (!sc) return badRequest(`No card named "${body.name}" was found on Scryfall.`);
 
     const cardId = await upsertCard(sc);
-    const item = await addOwnedCard({
+    const item = await addOwnedCard(userId, {
       cardId,
       quantity: body.quantity ?? 1,
       foil: body.foil,

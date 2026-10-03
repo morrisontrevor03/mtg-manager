@@ -142,10 +142,19 @@ jobs:
       TF_IN_AUTOMATION: "1"
       TF_VAR_api_shared_secret: ${{ secrets.API_SHARED_SECRET }}
       TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
     defaults:
       run:
         working-directory: infra
     steps:
+      # An empty secret is a valid Terraform value, and applying it removes the
+      # API's shared-secret check entirely. Fail loudly instead.
+      - name: Check required secrets
+        run: |
+          if [ -z "$TF_VAR_api_shared_secret" ]; then
+            echo "::error::The API_SHARED_SECRET repository secret is missing or empty. See docs/ci-cd.md."
+            exit 1
+          fi
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v8
         with:
@@ -210,10 +219,19 @@ jobs:
       TF_IN_AUTOMATION: "1"
       TF_VAR_api_shared_secret: ${{ secrets.API_SHARED_SECRET }}
       TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
     defaults:
       run:
         working-directory: infra
     steps:
+      # An empty secret is a valid Terraform value, and applying it removes the
+      # API's shared-secret check entirely. Fail loudly instead.
+      - name: Check required secrets
+        run: |
+          if [ -z "$TF_VAR_api_shared_secret" ]; then
+            echo "::error::The API_SHARED_SECRET repository secret is missing or empty. See docs/ci-cd.md."
+            exit 1
+          fi
       - uses: actions/checkout@v5
       - uses: actions/download-artifact@v8
         with:

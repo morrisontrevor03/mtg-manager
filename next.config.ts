@@ -31,6 +31,10 @@ const nextConfig: NextConfig = {
   // and let CloudFront append `index.html`. Without this, `/decks` would need a
   // rewrite rule to find its file.
   trailingSlash: staticExport,
+
+  // The Google sign-in redirect URI must match Cognito's registration exactly,
+  // trailing slash included, so the browser needs to know which mode it is in.
+  env: { NEXT_PUBLIC_TRAILING_SLASH: staticExport ? "1" : "" },
 };
 
 export default nextConfig;

@@ -15,6 +15,8 @@ export interface BuildDeckResult {
 }
 
 export interface BuildDeckOptions {
+  /** Owner of the collection the deck is built from, and of the saved deck. */
+  userId: string;
   format: Format;
   prompt: string;
   commanderName?: string;
@@ -81,7 +83,7 @@ function toRuleCard(draftCard: DeckDraft["cards"][number], card: Card): RuleCard
 }
 
 export async function buildAndSaveDeck(opts: BuildDeckOptions): Promise<BuildDeckResult> {
-  const ownedLegal = await getFormatLegalOwnedCards(opts.format);
+  const ownedLegal = await getFormatLegalOwnedCards(opts.userId, opts.format);
 
   // Resolve an explicit commander up front so we can steer the card pool.
   let commanderCard: Card | null = null;
@@ -149,7 +151,10 @@ export async function buildAndSaveDeck(opts: BuildDeckOptions): Promise<BuildDec
   // --- Reconcile ownership against the real collection ---------------
   const ownedQty = new Map<string, number>();
   {
-    const items = await db.collectionItem.findMany({ include: { card: true } });
+    const items = await db.collectionItem.findMany({
+      where: { userId: opts.userId },
+      include: { card: true },
+    });
     for (const it of items) {
       const k = it.card.name.toLowerCase();
       ownedQty.set(k, (ownedQty.get(k) ?? 0) + it.quantity);
@@ -199,6 +204,7 @@ export async function buildAndSaveDeck(opts: BuildDeckOptions): Promise<BuildDec
 
   const deck = await db.deck.create({
     data: {
+      userId: opts.userId,
       name: draft.deckName || `${opts.format} deck`,
       format: opts.format,
       description: draft.strategy,

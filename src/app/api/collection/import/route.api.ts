@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { handle, ok, badRequest } from "@/lib/http";
+import { requireUser } from "@/lib/auth";
 import { parseCardList } from "@/lib/csv";
 import { addOwnedCard } from "@/lib/collection";
 import { fetchCollection, upsertCard } from "@/lib/scryfall";
@@ -26,6 +27,7 @@ async function readText(req: Request): Promise<string> {
 
 export function POST(req: Request) {
   return handle(async () => {
+    const userId = await requireUser(req);
     const text = await readText(req);
     const parsed = parseCardList(text);
     if (parsed.length === 0) return badRequest("No card names found in the import.");
@@ -42,15 +44,15 @@ export function POST(req: Request) {
         qtyByName.get(sc.name.toLowerCase()) ??
         parsed.find((p) => sc.name.toLowerCase().startsWith(p.name.toLowerCase()))?.quantity ??
         1;
-      await addOwnedCard({ cardId, quantity: qty });
+      await addOwnedCard(userId, { cardId, quantity: qty });
       matched.push({ name: sc.name, quantity: qty });
       addedCopies += qty;
     }
 
     const [uniqueCards, totalCopies] = await Promise.all([
-      db.collectionItem.count(),
+      db.collectionItem.count({ where: { userId } }),
       db.collectionItem
-        .aggregate({ _sum: { quantity: true } })
+        .aggregate({ where: { userId }, _sum: { quantity: true } })
         .then((r) => r._sum.quantity ?? 0),
     ]);
 

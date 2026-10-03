@@ -111,9 +111,10 @@ export function serializeDeck(deck: DeckWithRelations): SerializedDeck {
   };
 }
 
-export async function getDeck(id: string): Promise<SerializedDeck | null> {
-  const deck = await db.deck.findUnique({
-    where: { id },
+/** A user's deck by id; another user's deck is reported as not found. */
+export async function getDeck(userId: string, id: string): Promise<SerializedDeck | null> {
+  const deck = await db.deck.findFirst({
+    where: { id, userId },
     include: { commander: true, cards: { include: { card: true } } },
   });
   return deck ? serializeDeck(deck) : null;

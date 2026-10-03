@@ -46,9 +46,9 @@ resource "aws_apigatewayv2_api" "main" {
     content {
       allow_origins = var.cors_allowed_origins
       allow_methods = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
-      allow_headers = ["content-type", "x-api-key"]
+      allow_headers = ["content-type", "x-api-key", "authorization"]
       max_age       = 3600
-      # No cookies are used; the shared secret travels in a header.
+      # No cookies are used; the shared secret and the bearer token travel in headers.
       allow_credentials = false
     }
   }
@@ -76,6 +76,12 @@ resource "aws_apigatewayv2_route" "api" {
   api_id    = aws_apigatewayv2_api.main.id
   route_key = each.value
   target    = "integrations/${aws_apigatewayv2_integration.api.id}"
+
+  # Every application route requires a valid Cognito access token, checked here
+  # before the Lambda is invoked. Only the health probe stays open, so the
+  # deploy pipeline's smoke test needs no credentials.
+  authorization_type = each.value == local.health_route ? "NONE" : "JWT"
+  authorizer_id      = each.value == local.health_route ? null : aws_apigatewayv2_authorizer.cognito.id
 }
 
 resource "aws_lambda_permission" "apigw" {

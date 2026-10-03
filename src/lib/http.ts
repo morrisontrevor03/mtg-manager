@@ -1,4 +1,5 @@
 import { ZodError } from "zod";
+import { UnauthorizedError } from "@/lib/auth";
 
 // These helpers deliberately use the standard `Response` rather than
 // `NextResponse`, so the route handlers in `src/app/api/**` can be imported and
@@ -28,6 +29,9 @@ export function serviceUnavailable(message: string) {
 /** Wrap a route handler so thrown errors become clean JSON responses. */
 export function handle(fn: () => Promise<Response>): Promise<Response> {
   return fn().catch((err: unknown) => {
+    if (err instanceof UnauthorizedError) {
+      return Response.json({ error: err.message }, { status: 401 });
+    }
     if (err instanceof ZodError) {
       return badRequest("Invalid request body", { issues: err.issues });
     }

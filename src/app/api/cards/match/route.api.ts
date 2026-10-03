@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { handle, ok } from "@/lib/http";
+import { requireUser } from "@/lib/auth";
 import { matchCardName } from "@/lib/cardIndex";
 import { parseVoiceInput } from "@/lib/voiceParse";
 
@@ -13,6 +14,7 @@ const Body = z.object({
 
 export function POST(req: Request) {
   return handle(async () => {
+    await requireUser(req);
     const { transcript, limit } = Body.parse(await req.json());
     const intent = parseVoiceInput(transcript);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { apiFetch } from "@/lib/authClient";
 
 /**
  * `onChanged` replaces what used to be `router.refresh()`. The frontend is a
@@ -26,7 +27,7 @@ export function AddCardForm({ onChanged }: { onChanged?: () => void }) {
         return;
       }
       try {
-        const res = await fetch(`/api/cards/search?q=${encodeURIComponent(name)}`);
+        const res = await apiFetch(`/api/cards/search?q=${encodeURIComponent(name)}`);
         const data = await res.json();
         setSuggestions((data.names ?? []).slice(0, 8));
       } catch {
@@ -44,7 +45,7 @@ export function AddCardForm({ onChanged }: { onChanged?: () => void }) {
     setBusy(true);
     setMsg(null);
     try {
-      const res = await fetch("/api/collection", {
+      const res = await apiFetch("/api/collection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: name.trim(), quantity, foil }),

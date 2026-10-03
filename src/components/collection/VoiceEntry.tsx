@@ -8,6 +8,7 @@ import { useSpeechRecognition } from "@/components/collection/useSpeechRecogniti
 import { beep } from "@/lib/beep";
 import { shouldAutoDismiss, type EntryStatus } from "@/lib/voiceSession";
 import type { VoiceCommand } from "@/lib/voiceParse";
+import { apiFetch } from "@/lib/authClient";
 
 interface EnrichedCard {
   id: string;
@@ -129,7 +130,7 @@ export function VoiceEntry() {
     async (id: string, name: string, quantity: number, foil: boolean, score?: number) => {
       update(id, { status: "enriching", matchedName: name, score });
       try {
-        const res = await fetch("/api/collection", {
+        const res = await apiFetch("/api/collection", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, quantity, foil }),
@@ -164,7 +165,7 @@ export function VoiceEntry() {
     async (entry: Entry) => {
       if (!entry.itemId || entry.quantityAfter === undefined) return;
       const remaining = entry.quantityAfter - entry.quantity;
-      await fetch(`/api/collection/${entry.itemId}`, {
+      await apiFetch(`/api/collection/${entry.itemId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ quantity: Math.max(0, remaining) }),
@@ -221,7 +222,7 @@ export function VoiceEntry() {
       setEntries((prev) => [{ id, raw: transcript, status: "heard", quantity: 1, foil: false }, ...prev]);
 
       try {
-        const res = await fetch("/api/cards/match", {
+        const res = await apiFetch("/api/cards/match", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ transcript }),

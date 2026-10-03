@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Panel } from "@/components/ui";
 import type { Color, Format } from "@/lib/types";
+import { apiFetch } from "@/lib/authClient";
 
 interface Candidate {
   name: string;
@@ -28,7 +29,7 @@ export function DeckBuilderForm({ commanderCandidates }: { commanderCandidates: 
     setError(null);
     setWarnings([]);
     try {
-      const res = await fetch("/api/decks/build", {
+      const res = await apiFetch("/api/decks/build", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

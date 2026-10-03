@@ -70,3 +70,20 @@ output "cloudfront_distribution_id" {
   description = "Distribution id, for a manual cache invalidation if you ever need one."
   value       = aws_cloudfront_distribution.site.id
 }
+
+# --- Accounts -------------------------------------------------------------
+
+output "cognito_user_pool_id" {
+  description = "Cognito user pool holding the app's accounts."
+  value       = aws_cognito_user_pool.main.id
+}
+
+output "google_redirect_uri" {
+  description = "Paste into the Google OAuth client's \"Authorized redirect URIs\"."
+  value       = "https://${local.auth_config.oauthDomain}/oauth2/idpresponse"
+}
+
+output "auth_config_json" {
+  description = "Frontend auth config. `npm run auth:config` writes it to public/ for local development."
+  value       = jsonencode(local.auth_config)
+}

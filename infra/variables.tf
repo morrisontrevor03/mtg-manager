@@ -217,6 +217,38 @@ variable "run_migrations_on_apply" {
   default     = true
 }
 
+# --- Accounts -------------------------------------------------------------
+
+variable "google_client_id" {
+  description = <<-EOT
+    OAuth client id from Google Cloud Console (APIs & Services -> Credentials ->
+    OAuth client ID, type "Web application"). Leave empty to offer email and
+    password sign-in only; the Google button is hidden until this is set.
+
+    Its authorized redirect URI must be the `google_redirect_uri` output.
+  EOT
+  type        = string
+  default     = ""
+}
+
+variable "google_client_secret" {
+  description = "OAuth client secret matching google_client_id."
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = var.google_client_id == "" || var.google_client_secret != ""
+    error_message = "google_client_secret is required when google_client_id is set."
+  }
+}
+
+variable "local_dev_origin" {
+  description = "Origin of `next dev`, registered as an allowed sign-in redirect. Empty to disallow."
+  type        = string
+  default     = "http://localhost:3000"
+}
+
 # --- Frontend -------------------------------------------------------------
 
 variable "cloudfront_price_class" {

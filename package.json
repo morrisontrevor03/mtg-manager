@@ -15,11 +15,14 @@
     "lambda:build": "node lambda/build.mjs",
     "lambda:check": "node lambda/check-routes.mjs",
     "typecheck": "next typegen && tsc --noEmit",
+    "auth:config": "node scripts/auth-config.mjs",
     "build:static": "node scripts/build-static.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.122.0",
     "@prisma/client": "^6.19.3",
+    "aws-amplify": "^6.22.1",
+    "aws-jwt-verify": "^5.2.1",
     "next": "16.3.3",
     "react": "19.2.8",
     "react-dom": "19.2.8",

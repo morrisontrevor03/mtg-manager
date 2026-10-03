@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { handle, ok, badRequest } from "@/lib/http";
+import { requireUser } from "@/lib/auth";
 import { buildAndSaveDeck } from "@/lib/deckBuilder";
 import { MissingApiKeyError } from "@/lib/claude";
 
@@ -17,10 +18,12 @@ const Body = z.object({
 
 export function POST(req: Request) {
   return handle(async () => {
+    const userId = await requireUser(req);
     const body = Body.parse(await req.json());
 
     try {
       const result = await buildAndSaveDeck({
+        userId,
         format: body.format,
         prompt: body.prompt,
         commanderName: body.commanderName?.trim() || undefined,

@@ -7,6 +7,7 @@
 
 import { timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db";
+import { USER_ID_HEADER } from "@/lib/auth";
 import { matchRoute } from "./match";
 import { routes } from "./routes";
 
@@ -25,6 +26,8 @@ interface ApiGatewayV2Event {
   requestContext?: {
     requestId?: string;
     http?: { method?: string; path?: string };
+    /** Present when the route has the Cognito JWT authorizer attached. */
+    authorizer?: { jwt?: { claims?: Record<string, string | undefined> } };
   };
 }
 
@@ -38,12 +41,19 @@ interface LambdaResult {
 
 // --- Event <-> Request/Response -------------------------------------------
 
-function toRequest(event: ApiGatewayV2Event, method: string, path: string): Request {
+export function toRequest(event: ApiGatewayV2Event, method: string, path: string): Request {
   const headers = new Headers();
   for (const [name, value] of Object.entries(event.headers ?? {})) {
     if (value !== undefined) headers.set(name, value);
   }
   if (event.cookies?.length) headers.set("cookie", event.cookies.join("; "));
+
+  // The route handlers trust USER_ID_HEADER as the caller's identity, so it must
+  // only ever carry the `sub` that API Gateway's JWT authorizer verified. Drop
+  // whatever the client sent before setting it.
+  headers.delete(USER_ID_HEADER);
+  const sub = event.requestContext?.authorizer?.jwt?.claims?.sub;
+  if (sub) headers.set(USER_ID_HEADER, sub);
 
   const host = headers.get("host") ?? "localhost";
   const query = event.rawQueryString ? `?${event.rawQueryString}` : "";

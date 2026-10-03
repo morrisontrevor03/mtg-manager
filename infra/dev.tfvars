@@ -23,5 +23,10 @@ lambda_architecture         = "arm64"
 lambda_memory_mb            = 1024
 lambda_reserved_concurrency = -1
 
+# "Sign in with Google". Empty until a Google OAuth client exists; see
+# docs/accounts.md. The client id is public; its secret comes from the
+# GOOGLE_CLIENT_SECRET GitHub secret (TF_VAR_google_client_secret).
+google_client_id = ""
+
 # Off on purpose until the async rebuild; see infra/README.md.
 enable_deck_builder = false

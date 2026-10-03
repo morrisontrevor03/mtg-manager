@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/authClient";
 
 /**
  * Client-side data loading for the statically exported frontend.
@@ -42,7 +43,7 @@ export function useApi<T>(path: string | null): ApiState<T> {
     // A page can unmount or change its query mid-flight; ignore late arrivals.
     const controller = new AbortController();
 
-    fetch(path, { signal: controller.signal })
+    apiFetch(path, { signal: controller.signal })
       .then(async (res) => {
         const body = await res.json().catch(() => null);
         if (!res.ok) throw new Error(body?.error ?? `Request failed (${res.status})`);

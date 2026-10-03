@@ -58,9 +58,12 @@ model CatalogCache {
   updatedAt DateTime @updatedAt
 }
 
-/// A card the user physically owns.
+/// A card a user physically owns.
 model CollectionItem {
   id            String   @id @default(cuid())
+  /// Cognito `sub` of the owner. There is no User table: Cognito is the source
+  /// of truth for accounts, and the sub is stable for the life of the account.
+  userId        String
   card          Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
   cardId        String
   quantity      Int      @default(1)
@@ -71,14 +74,16 @@ model CollectionItem {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  // One row per (card, foil) combination.
-  @@unique([cardId, foil])
+  // One row per (owner, card, foil) combination.
+  @@unique([userId, cardId, foil])
   @@index([cardId])
 }
 
 /// A constructed deck (LLM-built or manual).
 model Deck {
   id              String   @id @default(cuid())
+  /// Cognito `sub` of the owner.
+  userId          String
   name            String
   format          String   @default("standard") // "standard" | "commander"
   description     String   @default("")
@@ -95,6 +100,7 @@ model Deck {
 
   cards DeckCard[]
 
+  @@index([userId, updatedAt])
   @@index([format])
 }
 

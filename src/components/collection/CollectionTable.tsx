@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { Badge, ColorPips, ManaCost } from "@/components/ui";
+import { apiFetch } from "@/lib/authClient";
 
 export interface Row {
   id: string;
@@ -47,7 +48,7 @@ export function CollectionTable({
 
   async function patch(id: string, quantity: number) {
     setBusyId(id);
-    await fetch(`/api/collection/${id}`, {
+    await apiFetch(`/api/collection/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ quantity }),

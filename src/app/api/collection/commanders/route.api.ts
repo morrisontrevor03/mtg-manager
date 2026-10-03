@@ -1,11 +1,12 @@
 import { getCommanderCandidates } from "@/lib/collection";
 import { handle, ok } from "@/lib/http";
+import { requireUser } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
-export function GET() {
+export function GET(req: Request) {
   return handle(async () => {
-    const candidates = await getCommanderCandidates();
+    const candidates = await getCommanderCandidates(await requireUser(req));
 
     // The deck-builder page used to read ANTHROPIC_API_KEY directly on the
     // server to decide whether to warn. A static client page cannot, so the

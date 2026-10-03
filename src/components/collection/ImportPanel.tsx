@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { apiFetch } from "@/lib/authClient";
 
 interface ImportResult {
   requested: number;
@@ -22,7 +23,7 @@ export function ImportPanel({ onChanged }: { onChanged?: () => void }) {
     setError(null);
     setResult(null);
     try {
-      const res = await fetch("/api/collection/import", {
+      const res = await apiFetch("/api/collection/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ text: payload }),

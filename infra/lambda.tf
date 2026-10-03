@@ -20,10 +20,13 @@ locals {
     SCRYFALL_UA                 = var.scryfall_user_agent
     # Egress is IPv6-only. Node would otherwise be free to try an A record first
     # and sit in a connect timeout before falling back, so prefer AAAA outright.
-    NODE_OPTIONS                        = "--dns-result-order=ipv6first"
-    ENABLE_DECK_BUILDER                 = var.enable_deck_builder ? "true" : "false"
-    ANTHROPIC_API_KEY                   = var.anthropic_api_key
-    API_SHARED_SECRET                   = var.api_shared_secret
+    NODE_OPTIONS        = "--dns-result-order=ipv6first"
+    ENABLE_DECK_BUILDER = var.enable_deck_builder ? "true" : "false"
+    ANTHROPIC_API_KEY   = var.anthropic_api_key
+    API_SHARED_SECRET   = var.api_shared_secret
+    # API Gateway's JWT authorizer verifies Cognito tokens before invocation;
+    # route handlers read the verified user from a header the handler sets.
+    AUTH_MODE                           = "gateway"
     AWS_NODEJS_CONNECTION_REUSE_ENABLED = "1"
   }
 }

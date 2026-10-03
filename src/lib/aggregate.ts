@@ -64,10 +64,14 @@ function toBuckets(map: Map<string, number>, order?: string[]): Bucket[] {
     .map(([label, value]) => ({ label, value }));
 }
 
-export async function getDashboardData(): Promise<DashboardData> {
+export async function getDashboardData(userId: string): Promise<DashboardData> {
   const [items, decks] = await Promise.all([
-    db.collectionItem.findMany({ include: { card: true }, orderBy: { createdAt: "desc" } }),
-    db.deck.groupBy({ by: ["format"], _count: { _all: true } }),
+    db.collectionItem.findMany({
+      where: { userId },
+      include: { card: true },
+      orderBy: { createdAt: "desc" },
+    }),
+    db.deck.groupBy({ by: ["format"], where: { userId }, _count: { _all: true } }),
   ]);
 
   let totalCards = 0;

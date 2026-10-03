@@ -64,3 +64,6 @@ infra/tfplan.bin
 next-env.d.ts
 
 /src/generated/prisma
+
+# local copy of the deployed Cognito config (npm run auth:config)
+/public/auth-config.json

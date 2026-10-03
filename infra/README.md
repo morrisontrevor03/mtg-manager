@@ -157,10 +157,14 @@ the client polls a status endpoint. `POST /api/collection/import` carries the sa
 `maxDuration = 300` declaration and the same exposure on a large CSV, but it stays
 enabled because a small import finishes well inside the limit.
 
-**Nothing authenticates callers unless you set `api_shared_secret`.** The app was
-built single-user with no auth, and this API is on the public internet. With the
-variable set, every request needs a matching `x-api-key` header; with it empty,
-anyone who learns the URL can read and write your collection.
+**Callers are authenticated twice.** Every application route requires a Cognito
+access token, which API Gateway's JWT authorizer verifies before the Lambda runs,
+and each user only ever sees their own collection and decks (see
+[`auth.tf`](auth.tf) and [`docs/accounts.md`](../docs/accounts.md)). Separately,
+`api_shared_secret` makes the gateway reject any request that did not come through
+CloudFront. Keep it set: `/api/health` has no token check, and the secret is what
+keeps the raw gateway URL from being an open door. The pipeline refuses to deploy
+with it empty.
 
 ## Cost
 
@@ -171,6 +175,7 @@ Rough monthly figures for a single user in `us-east-1`:
 | RDS `db.t4g.micro`, 20GB gp3, 7-day backups | ~$13-15 |
 | Egress-only internet gateway, VPC, subnets, IGW | $0 |
 | Lambda, API Gateway, CloudWatch, Secrets Manager | under $1 at this volume |
+| Cognito (Lite tier) | $0 up to 10,000 monthly active users |
 | S3 (2MB) + CloudFront (`PriceClass_100`) | under $1 at this volume |
 | **Total** | **~$15-16/month** |
 
