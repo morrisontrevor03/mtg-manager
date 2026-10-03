@@ -1,0 +1,55 @@
+# Copy to terraform.tfvars and adjust. Everything here has a default except the
+# values you are told to set below.
+
+aws_region  = "us-east-1"
+environment = "dev"
+
+# --- Strongly recommended -------------------------------------------------
+
+# The app has no user accounts. Without a shared secret, anyone who learns the
+# API URL can read and write your collection. Generate one with:
+#   openssl rand -hex 32
+api_shared_secret = ""
+
+# Scryfall asks for a descriptive User-Agent identifying your deployment.
+scryfall_user_agent = "MTGManager/0.1 (you@example.com)"
+
+# --- Frontend -------------------------------------------------------------
+
+# Leave empty if you route /api/* to this API through a CloudFront behaviour on
+# the same domain as the frontend (recommended — no CORS involved at all).
+# Otherwise list the exact browser origins that will call the API.
+# cors_allowed_origins = ["https://d111111abcdef8.cloudfront.net"]
+
+# --- Cost and durability --------------------------------------------------
+
+# ~$15/month, essentially all of it RDS. There is no NAT gateway: the Lambda
+# reaches Scryfall and Anthropic over IPv6 through a free egress-only internet
+# gateway. See infra/README.md for the breakdown and the caveat that creates.
+db_instance_class        = "db.t4g.micro"
+db_allocated_storage     = 20
+db_backup_retention_days = 7
+
+# Turn both of these on once the data matters: deletion protection also switches
+# on a final snapshot before the instance can be destroyed.
+db_deletion_protection = false
+db_multi_az            = false
+
+# --- Lambda ---------------------------------------------------------------
+
+# Must match the --arch passed to `npm run lambda:build`.
+lambda_architecture = "arm64"
+lambda_memory_mb    = 1024
+
+# Each warm instance holds one Postgres connection; db.t4g.micro allows ~110.
+# Keep -1 until you raise the account's Lambda concurrency quota above 10 —
+# AWS rejects any reservation that leaves fewer than 10 unreserved.
+lambda_reserved_concurrency = -1
+
+# --- LLM deck builder -----------------------------------------------------
+
+# Off by default: POST /api/decks/build is declared maxDuration = 300 and cannot
+# finish inside API Gateway's hard 29-second ceiling. Enabling it without
+# rebuilding the route as an async job will return 504 on any slow build.
+enable_deck_builder = false
+# anthropic_api_key = "sk-ant-..."

@@ -1,0 +1,117 @@
+// MTG Manager schema.
+// Postgres (AWS RDS in production, see infra/). All column types are portable:
+// no String[] scalar lists, no native enums, no raw SQL.
+//
+// `binaryTargets` ships the Linux query engines needed by the AWS Lambda
+// runtime alongside the native one used for local development. `lambda/build.mjs`
+// copies the engine matching the deployed Lambda architecture into the zip.
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Scryfall-backed card catalogue / local cache.
+/// One row per physical printing (unique by scryfallId).
+model Card {
+  id             String   @id @default(cuid())
+  scryfallId     String   @unique
+  oracleId       String
+  name           String
+  setCode        String
+  collectorNumber String
+  manaCost       String   @default("")
+  cmc            Float    @default(0)
+  typeLine       String   @default("")
+  oracleText     String   @default("")
+  colors         Json // e.g. ["R","W"]
+  colorIdentity  Json // e.g. ["R","W"]
+  rarity         String   @default("")
+  layout         String   @default("normal")
+  imageUri       String   @default("")
+  prices         Json // { usd, usd_foil, eur, tix }
+  legalities     Json // { standard: "legal", commander: "legal", ... }
+  scryfallUri    String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  collectionItems CollectionItem[]
+  deckCards       DeckCard[]
+  commanderDecks  Deck[]           @relation("DeckCommander")
+
+  @@index([oracleId])
+  @@index([name])
+}
+
+/// Cached Scryfall bulk lookups that are expensive to refetch — currently the
+/// full card-name catalogue used by voice matching. One row per `key`.
+model CatalogCache {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  payload   Json
+  fetchedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// A card the user physically owns.
+model CollectionItem {
+  id            String   @id @default(cuid())
+  card          Card     @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  cardId        String
+  quantity      Int      @default(1)
+  foil          Boolean  @default(false)
+  condition     String   @default("NM")
+  acquiredPrice Float?
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // One row per (card, foil) combination.
+  @@unique([cardId, foil])
+  @@index([cardId])
+}
+
+/// A constructed deck (LLM-built or manual).
+model Deck {
+  id              String   @id @default(cuid())
+  name            String
+  format          String   @default("standard") // "standard" | "commander"
+  description     String   @default("")
+  commander       Card?    @relation("DeckCommander", fields: [commanderCardId], references: [id])
+  commanderCardId String?
+  colors          Json     @default("[]")
+  llmModel        String   @default("")
+  llmPrompt       String   @default("")
+  llmRationale    String   @default("")
+  manaBaseNotes   String   @default("")
+  status          String   @default("draft") // "draft" | "final"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  cards DeckCard[]
+
+  @@index([format])
+}
+
+/// A card slot inside a deck.
+model DeckCard {
+  id       String  @id @default(cuid())
+  deck     Deck    @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  deckId   String
+  card     Card    @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  cardId   String
+  quantity Int     @default(1)
+  role     String  @default("mainboard") // "commander" | "mainboard" | "sideboard"
+  owned    Boolean @default(false) // did the user own enough copies at build time?
+  acquire  Boolean @default(false) // LLM-suggested purchase
+  estPrice Float?
+
+  @@unique([deckId, cardId, role])
+  @@index([deckId])
+  @@index([cardId])
+}

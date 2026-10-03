@@ -1,0 +1,474 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Parchment & ink — a dark, warm, tactile theme.
+
+   The palette is aged paper on warm charcoal rather than the usual cool
+   blue-black, so card art and mana colours sit on something that feels like a
+   card-shop table. Motion is physical: things lift, tilt, and settle like
+   objects, and ink bleeds in rather than fading.
+   ========================================================================== */
+
+:root {
+  /* Warm charcoals, darkest first. */
+  --background: #120f0c;
+  --surface: #1c1712;
+  --surface-2: #272019;
+  --surface-3: #322a20;
+  --border: #382f24;
+  --border-strong: #4d4030;
+
+  /* Aged paper. */
+  --foreground: #f2e9d8;
+  --muted: #a3947c;
+  --muted-dim: #7a6d59;
+
+  /* Warm amber accent — burnished, never neon. */
+  --accent: #d6a04a;
+  --accent-soft: #b8842f;
+  --accent-ink: #241a09;
+
+  --danger: #c4593f;
+  --success: #8aa363;
+
+  /* Elevation, warm-tinted rather than neutral black. */
+  --shadow-sm: 0 1px 2px rgba(20, 12, 4, 0.5);
+  --shadow-md: 0 8px 24px -12px rgba(12, 7, 2, 0.85);
+  --shadow-lg: 0 20px 44px -20px rgba(10, 6, 2, 0.95);
+  --hairline: inset 0 1px 0 rgba(255, 240, 214, 0.045);
+
+  /* Motion. A single easing curve keeps everything feeling like one object. */
+  --ease-settle: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-fast: 160ms;
+  --dur: 260ms;
+  --dur-slow: 520ms;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-muted-dim: var(--muted-dim);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces);
+}
+
+/* --- Page ---------------------------------------------------------------- */
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Warm light pooling at the top, as if over a table. */
+  background-image:
+    radial-gradient(900px 420px at 50% -280px, rgba(214, 160, 74, 0.1), transparent 70%),
+    radial-gradient(700px 380px at 90% 4%, rgba(160, 96, 48, 0.055), transparent 72%);
+  background-attachment: fixed;
+}
+
+/*
+ * Paper grain. A tiny inline SVG turbulence tile, held very low so it reads as
+ * texture rather than noise. Fixed and non-interactive so it never scrolls or
+ * swallows clicks.
+ */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+/* Keep real content above the grain. */
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+::selection {
+  background: rgba(214, 160, 74, 0.28);
+  color: var(--foreground);
+}
+
+/* Warm, thin scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+/* --- Type ---------------------------------------------------------------- */
+
+/*
+ * Fraunces carries the personality: a serif with enough wonk to feel playful
+ * while still reading as editorial. Body copy stays a clean sans.
+ */
+.display {
+  font-family: var(--font-fraunces), ui-serif, Georgia, serif;
+  font-optical-sizing: auto;
+  letter-spacing: -0.015em;
+  /* Letterpress: pressed into the page rather than floating on it. */
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+}
+
+.eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.numeral {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* --- Surfaces ------------------------------------------------------------ */
+
+.card {
+  background:
+    linear-gradient(180deg, rgba(255, 244, 224, 0.028) 0%, transparent 42%),
+    var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  box-shadow: var(--hairline), var(--shadow-md);
+  transition:
+    transform var(--dur) var(--ease-settle),
+    box-shadow var(--dur) var(--ease-settle),
+    border-color var(--dur) var(--ease-settle);
+}
+
+/* Opt-in tactility: the card lifts and tips slightly, like being picked up. */
+.card-lift:hover {
+  transform: translateY(-3px) rotate(-0.35deg);
+  box-shadow: var(--hairline), var(--shadow-lg);
+  border-color: var(--border-strong);
+}
+.card-lift:active {
+  transform: translateY(-1px) rotate(-0.12deg);
+  transition-duration: var(--dur-fast);
+}
+
+.divide-hairline > * + * {
+  border-top: 1px solid var(--border);
+}
+
+/* --- Controls ------------------------------------------------------------ */
+
+.input {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  color: var(--foreground);
+  width: 100%;
+  transition:
+    border-color var(--dur-fast) var(--ease-settle),
+    box-shadow var(--dur-fast) var(--ease-settle),
+    background-color var(--dur-fast) var(--ease-settle);
+}
+.input::placeholder {
+  color: var(--muted-dim);
+}
+.input:hover {
+  border-color: var(--border-strong);
+}
+.input:focus {
+  outline: none;
+  background: var(--surface-3);
+  border-color: var(--accent-soft);
+  box-shadow: 0 0 0 3px rgba(214, 160, 74, 0.16);
+}
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-soft) 100%);
+  color: var(--accent-ink);
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-weight: 650;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 240, 214, 0.28), var(--shadow-sm);
+  transition:
+    transform var(--dur-fast) var(--ease-settle),
+    box-shadow var(--dur-fast) var(--ease-settle),
+    filter var(--dur-fast) var(--ease-settle);
+}
+.btn:hover:not(:disabled) {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+  box-shadow: inset 0 1px 0 rgba(255, 240, 214, 0.32), var(--shadow-md);
+}
+/* Pressed, like a physical key. */
+.btn:active:not(:disabled) {
+  transform: translateY(1px) scale(0.988);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* A sheen that wipes across the button on hover — the one flourish. */
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    rgba(255, 245, 225, 0.32) 50%,
+    transparent 80%
+  );
+  transform: translateX(-120%);
+  transition: transform var(--dur-slow) var(--ease-settle);
+}
+.btn:hover:not(:disabled)::after {
+  transform: translateX(120%);
+}
+
+.btn-ghost {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  box-shadow: var(--hairline);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--border-strong);
+  filter: none;
+}
+
+/* --- Navigation ---------------------------------------------------------- */
+
+.nav-link {
+  position: relative;
+  padding-bottom: 2px;
+  color: var(--muted);
+  transition: color var(--dur-fast) var(--ease-settle);
+}
+.nav-link:hover {
+  color: var(--foreground);
+}
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -2px;
+  height: 1.5px;
+  background: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--dur) var(--ease-settle);
+}
+.nav-link:hover::after,
+.nav-link[data-active="true"]::after {
+  transform: scaleX(1);
+}
+.nav-link[data-active="true"] {
+  color: var(--foreground);
+}
+
+/* --- Motion -------------------------------------------------------------- */
+
+/* Ink settling into paper: blurred and low, resolving into place. */
+@keyframes ink-in {
+  from {
+    opacity: 0;
+    filter: blur(7px);
+    transform: translateY(9px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+.ink-in {
+  animation: ink-in var(--dur-slow) var(--ease-settle) both;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fade-in {
+  animation: fade-in 0.35s var(--ease-settle) both;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise-in {
+  animation: rise-in var(--dur-slow) var(--ease-settle) both;
+}
+
+/*
+ * Stagger children of a list/grid. Applied as a class on the container; each
+ * child gets a slightly later start so content deals out like cards.
+ */
+.stagger > * {
+  animation: ink-in var(--dur-slow) var(--ease-settle) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 55ms; }
+.stagger > *:nth-child(3) { animation-delay: 110ms; }
+.stagger > *:nth-child(4) { animation-delay: 165ms; }
+.stagger > *:nth-child(5) { animation-delay: 220ms; }
+.stagger > *:nth-child(6) { animation-delay: 275ms; }
+.stagger > *:nth-child(7) { animation-delay: 330ms; }
+.stagger > *:nth-child(8) { animation-delay: 385ms; }
+.stagger > *:nth-child(n + 9) { animation-delay: 440ms; }
+
+/* --- Voice entry --------------------------------------------------------- */
+
+@keyframes shimmer {
+  0% {
+    background-position: -400px 0;
+  }
+  100% {
+    background-position: 400px 0;
+  }
+}
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 0%,
+    var(--surface-3) 40%,
+    var(--surface-2) 80%
+  );
+  background-size: 400px 100%;
+  animation: shimmer 1.3s linear infinite;
+}
+
+/* One-shot warm flare when an enriched record lands. */
+@keyframes land {
+  0% {
+    box-shadow: 0 0 0 2px var(--accent), 0 0 26px -4px rgba(214, 160, 74, 0.6);
+    border-color: var(--accent);
+  }
+  100% {
+    box-shadow: var(--hairline), var(--shadow-md);
+    border-color: var(--border);
+  }
+}
+.landed {
+  animation: land 1.6s var(--ease-settle);
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+.pulse-dot {
+  animation: pulse-dot 1.1s ease-in-out infinite;
+}
+
+/*
+ * Exit for an entry that is being cleared automatically — collapses its own
+ * height so the rows below close the gap rather than jumping.
+ */
+@keyframes settle-out {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+    max-height: 22rem;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-14px) scale(0.97);
+    max-height: 0;
+    margin-bottom: -0.75rem;
+  }
+}
+.settle-out {
+  overflow: hidden;
+  pointer-events: none;
+  animation: settle-out 320ms var(--ease-settle) forwards;
+}
+
+/* Waveform bars dancing while the recogniser is live. */
+@keyframes wave-bar {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.wave-bar {
+  transform-origin: center;
+  animation: wave-bar 0.9s ease-in-out infinite;
+}
+
+/* Breathing halo around the live capture button. */
+@keyframes listening-halo {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(196, 89, 63, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(196, 89, 63, 0);
+  }
+}
+.listening-halo {
+  animation: listening-halo 1.9s ease-out infinite;
+}
+
+/* --- Accessibility ------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .card-lift:hover {
+    transform: none;
+  }
+}

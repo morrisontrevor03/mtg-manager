@@ -1,0 +1,257 @@
+# CI/CD for MTG Manager. Setup and operation: docs/ci-cd.md.
+#
+#   pull request:   check, migrations, terraform, build  ->  plan
+#   push to main:   check, migrations, terraform, build  ->  plan  ->  [approve]  ->  deploy
+#
+# `terraform apply` is the whole deploy: it uploads the Lambda package and the
+# static frontend and runs database migrations. So the plan and deploy jobs both
+# work from the exact artifacts the build job produced.
+
+name: pipeline
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A newer push to the same PR supersedes the older run. Runs on main are never
+# cancelled: a half-finished apply is worse than a slow queue.
+concurrency:
+  group: pipeline-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "20" # matches the Lambda runtime (nodejs20.x)
+  TERRAFORM_VERSION: "1.16.4"
+  # Next.js and Prisma both send telemetry by default; neither is useful in CI.
+  NEXT_TELEMETRY_DISABLED: "1"
+  CHECKPOINT_DISABLE: "1"
+
+jobs:
+  check:
+    name: Lint, typecheck, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      # routeKeys.ts vs apigateway.tf. A drift here is a 404 in production.
+      - run: npm run lambda:check
+
+  migrations:
+    name: Migrations match schema
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16 # matches db_engine_version
+        env:
+          POSTGRES_PASSWORD: mtg
+          POSTGRES_DB: mtg
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:mtg@localhost:5432/mtg
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      # Every migration applies cleanly to an empty Postgres 16...
+      - run: npx prisma migrate deploy
+      # ...and together they produce exactly schema.prisma. Exit code 2 means a
+      # schema change was committed without `prisma migrate dev`, which would
+      # otherwise surface as a runtime error on Lambda.
+      - name: Check for a missing migration
+        run: |
+          npx prisma migrate diff \
+            --from-url "$DATABASE_URL" \
+            --to-schema-datamodel prisma/schema.prisma \
+            --exit-code
+
+  terraform:
+    name: Terraform fmt and validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+      - run: terraform fmt -check -recursive
+        working-directory: infra
+      - run: terraform init -backend=false -input=false && terraform validate
+        working-directory: infra
+      - run: terraform init -backend=false -input=false && terraform validate
+        working-directory: infra/bootstrap
+
+  build:
+    name: Build Lambda and frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      # Architecture must match lambda_architecture in infra/dev.tfvars.
+      - run: npm run lambda:build -- --arch=arm64
+      - run: npm run build:static
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lambda-package
+          path: lambda/dist/package
+          # The Prisma client lives under node_modules/.prisma, which
+          # upload-artifact skips by default as a hidden directory.
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: static-site
+          path: out
+          if-no-files-found: error
+          retention-days: 7
+
+  plan:
+    name: Terraform plan
+    needs: [check, migrations, terraform, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # OIDC token for the read-only AWS role
+    concurrency:
+      group: terraform-plan-${{ github.ref }}
+      cancel-in-progress: false
+    env:
+      TF_IN_AUTOMATION: "1"
+      TF_VAR_api_shared_secret: ${{ secrets.API_SHARED_SECRET }}
+      TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: lambda-package
+          path: lambda/dist/package
+      - uses: actions/download-artifact@v4
+        with:
+          name: static-site
+          path: out
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - run: terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+      # -lock=false: a plan never writes state, and taking the lock would make a
+      # PR plan fail if it happened to overlap a deploy.
+      - name: terraform plan
+        run: |
+          set -o pipefail
+          terraform plan -input=false -lock=false -var-file=dev.tfvars -no-color -out=tfplan \
+            | tee plan.txt
+      - name: Summarise plan
+        if: always()
+        run: |
+          {
+            echo "## Terraform plan"
+            echo
+            grep -E '^(Plan:|No changes\.|Error:)' plan.txt || echo "_plan did not complete_"
+            echo
+            echo "<details><summary>Full plan</summary>"
+            echo
+            echo '```'
+            # Job summaries cap at 1MB; a real plan here is a few KB.
+            head -c 900000 plan.txt
+            echo '```'
+            echo "</details>"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy:
+    name: Deploy to AWS
+    needs: plan
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Required reviewers on this environment are what make this job wait for
+    # your approval. The AWS apply role trusts nothing outside it.
+    environment:
+      name: production
+      url: ${{ steps.outputs.outputs.site_url }}
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: terraform-apply
+      cancel-in-progress: false
+    env:
+      TF_IN_AUTOMATION: "1"
+      TF_VAR_api_shared_secret: ${{ secrets.API_SHARED_SECRET }}
+      TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: lambda-package
+          path: lambda/dist/package
+      - uses: actions/download-artifact@v4
+        with:
+          name: static-site
+          path: out
+      - uses: aws-actions/configure-aws-credentials@v5
+        with:
+          role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+          terraform_wrapper: false
+      - run: terraform init -input=false -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}"
+      # Re-planned against the same artifacts the reviewed plan used, rather than
+      # passing a saved plan between jobs: a saved plan embeds secret values and
+      # would sit in the artifact store. With one user, the window for drift
+      # between the two plans is negligible.
+      - run: terraform plan -input=false -lock-timeout=5m -var-file=dev.tfvars -out=tfplan
+      - run: terraform apply -input=false -lock-timeout=5m tfplan
+      - id: outputs
+        run: echo "site_url=$(terraform output -raw site_url)" >> "$GITHUB_OUTPUT"
+      # Through CloudFront, which adds x-api-key itself, so this exercises the
+      # whole path: CloudFront -> API Gateway -> Lambda -> RDS.
+      - name: Smoke test
+        env:
+          SITE_URL: ${{ steps.outputs.outputs.site_url }}
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsS --max-time 30 "$SITE_URL/api/health" | tee /dev/stderr | grep -q '"database":"up"' \
+              && curl -fsS --max-time 30 -o /dev/null "$SITE_URL/"; then
+              echo "Healthy."
+              exit 0
+            fi
+            echo "Attempt $attempt failed; retrying in 20s (cold start or CloudFront propagation)."
+            sleep 20
+          done
+          echo "::error::Deployed stack failed its health check."
+          exit 1
