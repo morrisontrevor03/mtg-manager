@@ -14,7 +14,7 @@
     "postinstall": "prisma generate",
     "lambda:build": "node lambda/build.mjs",
     "lambda:check": "node lambda/check-routes.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "next typegen && tsc --noEmit",
     "build:static": "node scripts/build-static.mjs"
   },
   "dependencies": {
