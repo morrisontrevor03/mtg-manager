@@ -28,7 +28,12 @@ data "aws_caller_identity" "current" {}
 locals {
   # Bucket names are global; the account id keeps this one unique.
   state_bucket = "${var.project_name}-tfstate-${data.aws_caller_identity.current.account_id}"
-  repo         = "${var.github_owner}/${var.github_repo}"
+
+  # GitHub's OIDC `sub` claim pins the owner and repository by numeric id as well
+  # as by name: `repo:owner@123/name@456:...`. Trusting the ids means a deleted
+  # and re-created repository of the same name, which gets a new id, cannot
+  # assume these roles.
+  subject_prefix = "repo:${var.github_owner}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}"
 }
 
 # --- State bucket ---------------------------------------------------------
@@ -131,12 +136,12 @@ locals {
 data "aws_iam_policy_document" "trust" {
   for_each = {
     plan = [
-      "repo:${local.repo}:pull_request",
-      "repo:${local.repo}:ref:refs/heads/${var.default_branch}",
+      "${local.subject_prefix}:pull_request",
+      "${local.subject_prefix}:ref:refs/heads/${var.default_branch}",
     ]
     # Only jobs running in the protected `production` environment, which
     # requires your approval in GitHub before it starts.
-    apply = ["repo:${local.repo}:environment:${var.deploy_environment}"]
+    apply = ["${local.subject_prefix}:environment:${var.deploy_environment}"]
   }
 
   statement {

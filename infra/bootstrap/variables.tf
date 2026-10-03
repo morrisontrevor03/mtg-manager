@@ -27,6 +27,16 @@ variable "github_repo" {
   default     = "mtg-manager"
 }
 
+variable "github_owner_id" {
+  description = "Numeric id of the owner: `curl -s https://api.github.com/users/OWNER | grep '\"id\"'`."
+  type        = number
+}
+
+variable "github_repo_id" {
+  description = "Numeric id of the repository: `curl -s https://api.github.com/repos/OWNER/REPO | grep -m1 '\"id\"'`."
+  type        = number
+}
+
 variable "default_branch" {
   description = "Branch whose pushes run the plan job ahead of a deploy."
   type        = string

@@ -45,7 +45,19 @@ gh repo create mtg-manager --private --source . --push
 ```bash
 cd infra/bootstrap
 terraform init
-terraform apply -var github_owner=YOUR_GITHUB_USERNAME
+terraform apply      # reads the committed terraform.tfvars
+```
+
+The roles trust GitHub's OIDC subject in its id-pinned form,
+`repo:OWNER@OWNER_ID/REPO@REPO_ID:…`, so `terraform.tfvars` here holds the
+numeric owner and repository ids as well as the names. Both are public. If AWS
+ever rejects the token with `Not authorized to perform
+sts:AssumeRoleWithWebIdentity`, CloudTrail records the subject GitHub actually
+sent:
+
+```bash
+aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=AssumeRoleWithWebIdentity \
+  --max-results 1 --query 'Events[0].CloudTrailEvent' --output text
 ```
 
 If the apply fails with `EntityAlreadyExists` on the OIDC provider, your account
