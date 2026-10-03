@@ -155,7 +155,7 @@ jobs:
         with:
           name: static-site
           path: out
-      - uses: aws-actions/configure-aws-credentials@v5
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_PLAN_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -172,7 +172,9 @@ jobs:
           terraform plan -input=false -lock=false -var-file=dev.tfvars -no-color -out=tfplan \
             | tee plan.txt
       - name: Summarise plan
-        if: always()
+        # Also on failure, so plan errors show in the summary, but only if the
+        # plan step actually ran; otherwise there is no plan.txt to read.
+        if: always() && hashFiles('infra/plan.txt') != ''
         run: |
           {
             echo "## Terraform plan"
@@ -221,7 +223,7 @@ jobs:
         with:
           name: static-site
           path: out
-      - uses: aws-actions/configure-aws-credentials@v5
+      - uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_APPLY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
