@@ -1,17 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { ChevronRightIcon, SwordsIcon } from "lucide-react";
 import {
-  Badge,
-  ColorPips,
+  ActionLink,
   EmptyState,
   LoadError,
   PageHeader,
-  Panel,
-  Skeleton,
-} from "@/components/ui";
+  Section,
+  SkeletonLines,
+} from "@/components/patterns";
+import { CardThumb, ColorIdentity } from "@/components/mtg";
 import { SparkIcon } from "@/components/icons";
+import { Button } from "@/components/ui/button";
 import { useApi } from "@/lib/useApi";
+import { timeAgo } from "@/lib/timeAgo";
 import type { Color } from "@/lib/types";
 
 /** The shape `GET /api/decks` returns, already aggregated server-side. */
@@ -21,84 +24,134 @@ interface ApiDeck {
   format: string;
   status: string;
   colors: Color[];
+  commander: { name: string; imageUri: string } | null;
   cardCount: number;
   toAcquire: number;
   updatedAt: string;
 }
 
+const FORMATS = [
+  { key: "commander", title: "Commander" },
+  { key: "standard", title: "Standard" },
+] as const;
+
 export default function DecksPage() {
   const { data, error, loading, reload } = useApi<{ decks: ApiDeck[] }>("/api/decks");
   const decks = data?.decks ?? [];
 
-  const grouped = {
-    commander: decks.filter((d) => d.format === "commander"),
-    standard: decks.filter((d) => d.format === "standard"),
-  };
-
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <PageHeader
         title="Decks"
-        lead="Built from your collection, validated against format rules."
+        lead={
+          decks.length > 0
+            ? "Built from your collection and checked against format rules."
+            : undefined
+        }
         actions={
-          <Link href="/decks/new" className="btn text-sm">
-            <SparkIcon size={14} />
-            Build a deck
-          </Link>
+          <Button asChild>
+            <Link href="/decks/new">
+              <SparkIcon size={14} />
+              Build a deck
+            </Link>
+          </Button>
         }
       />
 
       {error ? (
         <LoadError message={error} onRetry={reload} />
       ) : loading && !data ? (
-        <Panel title="Decks">
-          <Skeleton lines={5} />
-        </Panel>
+        <SkeletonLines lines={5} />
       ) : decks.length === 0 ? (
-        <EmptyState icon="⚔" title="No decks yet">
-          Describe the deck you want and the model will build it from what you own —{" "}
-          <Link href="/decks/new" className="text-accent underline underline-offset-2">
-            give it a try
-          </Link>
-          .
+        <EmptyState
+          icon={<SwordsIcon />}
+          title="No decks yet"
+          action={<ActionLink href="/decks/new">Create a deck</ActionLink>}
+        >
+          Build your first deck from cards you already own. Describe how it should play; anything
+          missing is flagged as a card to acquire.
         </EmptyState>
       ) : (
-        <div className="stagger space-y-4">
-          {(["commander", "standard"] as const).map((fmt) =>
-            grouped[fmt].length ? (
-              <Panel key={fmt} title={fmt === "commander" ? "Commander" : "Standard"}>
-                <ul className="divide-hairline">
-                  {grouped[fmt].map((d) => (
-                    <li key={d.id}>
-                      <Link
-                        href={`/decks/view?id=${d.id}`}
-                        className="group flex flex-wrap items-center gap-3 rounded-lg px-2 py-3 transition-colors duration-200 hover:bg-surface-2/70"
-                      >
-                        <ColorPips colors={d.colors ?? []} />
-                        <span className="font-medium decoration-accent/60 underline-offset-2 group-hover:underline">
-                          {d.name}
-                        </span>
-                        <span className="numeral text-xs text-muted">{d.cardCount} cards</span>
-                        {d.toAcquire > 0 && <Badge tone="warn">{d.toAcquire} to acquire</Badge>}
-                        <Badge tone={d.status === "final" ? "good" : "default"}>{d.status}</Badge>
-                        <span className="ml-auto text-xs text-muted-dim">
-                          {new Date(d.updatedAt).toLocaleDateString()}
-                        </span>
-                        <span
-                          aria-hidden
-                          className="text-muted-dim transition-transform duration-200 group-hover:translate-x-1"
-                        >
-                          →
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </Panel>
-            ) : null,
-          )}
-        </div>
+        FORMATS.map(({ key, title }) => {
+          const list = decks.filter((d) => d.format === key);
+          if (!list.length) return null;
+          return (
+            <Section key={key} title={title} meta={`${list.length} ${list.length === 1 ? "deck" : "decks"}`}>
+              <ul className="stagger divide-y divide-border/60 border-y border-border/60">
+                {list.map((d) => (
+                  <li key={d.id}>
+                    <DeckRow deck={d} />
+                  </li>
+                ))}
+              </ul>
+            </Section>
+          );
+        })
       )}
     </div>
+  );
+}
+
+function DeckRow({ deck: d }: { deck: ApiDeck }) {
+  return (
+    <Link
+      href={`/decks/view?id=${d.id}`}
+      className="group flex items-center gap-4 px-2 py-3 transition-colors duration-200 hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
+    >
+      {d.commander?.imageUri ? (
+        <CardThumb uri={d.commander.imageUri} name={d.commander.name} className="h-11 w-16" />
+      ) : (
+        <span className="flex h-11 w-16 shrink-0 items-center justify-center rounded-[4px] bg-muted">
+          <ColorIdentity colors={d.colors ?? []} size={13} />
+        </span>
+      )}
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2.5">
+          <span className="truncate font-medium decoration-primary/60 underline-offset-4 group-hover:underline">
+            {d.name}
+          </span>
+          {d.commander && (
+            <span className="hidden sm:inline-flex">
+              <ColorIdentity colors={d.colors ?? []} size={14} />
+            </span>
+          )}
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+          {d.commander && <span className="truncate">{d.commander.name}</span>}
+          {d.commander && <span aria-hidden className="text-faint-foreground">·</span>}
+          <span className="numeral">{d.cardCount} cards</span>
+          {d.toAcquire > 0 && (
+            <>
+              <span aria-hidden className="text-faint-foreground">·</span>
+              <span className="text-primary">
+                <span className="numeral">{d.toAcquire}</span> to acquire
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      <span
+        className={
+          d.status === "final"
+            ? "hidden text-xs text-success sm:inline"
+            : "hidden text-xs text-faint-foreground sm:inline"
+        }
+      >
+        {d.status === "final" ? "Final" : "Draft"}
+      </span>
+      <time
+        dateTime={d.updatedAt}
+        title={`Updated ${new Date(d.updatedAt).toLocaleString()}`}
+        className="hidden w-24 text-right text-xs text-faint-foreground md:inline"
+      >
+        {timeAgo(d.updatedAt)}
+      </time>
+      <ChevronRightIcon
+        aria-hidden
+        className="size-4 shrink-0 text-faint-foreground transition-transform duration-200 group-hover:translate-x-0.5"
+      />
+    </Link>
   );
 }

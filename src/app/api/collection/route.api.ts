@@ -42,6 +42,7 @@ export function GET(req: Request) {
         foil: it.foil,
         condition: it.condition,
         acquiredPrice: it.acquiredPrice,
+        addedAt: it.createdAt.toISOString(),
         card: {
           id: it.card.id,
           name: it.card.name,
@@ -49,6 +50,8 @@ export function GET(req: Request) {
           collectorNumber: it.card.collectorNumber,
           typeLine: it.card.typeLine,
           manaCost: it.card.manaCost,
+          cmc: it.card.cmc,
+          oracleText: it.card.oracleText,
           rarity: it.card.rarity,
           colors: it.card.colors,
           imageUri: it.card.imageUri,

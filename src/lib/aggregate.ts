@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { CURVE_COLUMNS, curveBucket, primaryType } from "@/lib/cardTypes";
 import type { CardPrices, Color } from "@/lib/types";
 
 export interface Bucket {
@@ -17,36 +18,34 @@ export interface DashboardData {
   rarityBreakdown: Bucket[];
   manaCurve: Bucket[];
   topSets: Bucket[];
-  recent: {
-    name: string;
-    setCode: string;
-    quantity: number;
-    imageUri: string;
-    addedAt: string;
-  }[];
+  recent: DashboardCard[];
+  /** The priciest printings owned, by single-copy price. */
+  mostValuable: DashboardCard[];
 }
+
+/** One owned printing, with the metadata a collector reads it by. */
+export interface DashboardCard {
+  name: string;
+  setCode: string;
+  collectorNumber: string;
+  rarity: string;
+  manaCost: string;
+  typeLine: string;
+  foil: boolean;
+  quantity: number;
+  /** Single-copy price in USD (foil price for foils); 0 when unknown. */
+  priceUsd: number;
+  imageUri: string;
+  addedAt: string;
+}
+
+/** Scryfall's `special` and `bonus` rarities are grouped; anything else is `unknown`. */
+const RARITIES = ["common", "uncommon", "rare", "mythic", "special"];
 
 function priceOf(prices: CardPrices, foil: boolean): number {
   const raw = foil ? prices.usd_foil ?? prices.usd : prices.usd;
   const n = parseFloat(raw ?? "");
   return Number.isFinite(n) ? n : 0;
-}
-
-function primaryType(typeLine: string): string {
-  const t = typeLine.toLowerCase();
-  for (const known of [
-    "Land",
-    "Creature",
-    "Planeswalker",
-    "Instant",
-    "Sorcery",
-    "Artifact",
-    "Enchantment",
-    "Battle",
-  ]) {
-    if (t.includes(known.toLowerCase())) return known;
-  }
-  return "Other";
 }
 
 function bumpMap(map: Map<string, number>, key: string, by: number) {
@@ -100,14 +99,29 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
 
     const type = primaryType(c.typeLine);
     bumpMap(types, type, qty);
-    bumpMap(rarities, c.rarity || "unknown", qty);
+    const rarity = c.rarity === "bonus" ? "special" : c.rarity;
+    bumpMap(rarities, RARITIES.includes(rarity) ? rarity : "unknown", qty);
     bumpMap(sets, c.setCode.toUpperCase(), qty);
 
-    if (type !== "Land") {
-      const cmc = Math.max(0, Math.floor(c.cmc));
-      bumpMap(curve, cmc >= 7 ? "7+" : String(cmc), qty);
-    }
+    if (type !== "Land") bumpMap(curve, curveBucket(c.cmc), qty);
   }
+
+  const toCard = (it: (typeof items)[number]): DashboardCard => ({
+    name: it.card.name,
+    setCode: it.card.setCode.toUpperCase(),
+    collectorNumber: it.card.collectorNumber,
+    rarity: it.card.rarity,
+    manaCost: it.card.manaCost,
+    typeLine: it.card.typeLine,
+    foil: it.foil,
+    quantity: it.quantity,
+    priceUsd: priceOf(it.card.prices as CardPrices, it.foil),
+    imageUri: it.card.imageUri,
+    addedAt: it.createdAt.toISOString(),
+  });
+
+  // A 0-cost spell (Ornithopter, a Mox) gets its own column only when owned.
+  const curveOrder = curve.has("0") ? ["0", ...CURVE_COLUMNS] : CURVE_COLUMNS;
 
   return {
     totalCards,
@@ -128,15 +142,14 @@ export async function getDashboardData(userId: string): Promise<DashboardData> {
       "Colorless",
     ]),
     typeBreakdown: toBuckets(types),
-    rarityBreakdown: toBuckets(rarities, ["common", "uncommon", "rare", "mythic", "unknown"]),
-    manaCurve: toBuckets(curve, ["0", "1", "2", "3", "4", "5", "6", "7+"]),
-    topSets: toBuckets(sets).slice(0, 8),
-    recent: items.slice(0, 10).map((it) => ({
-      name: it.card.name,
-      setCode: it.card.setCode.toUpperCase(),
-      quantity: it.quantity,
-      imageUri: it.card.imageUri,
-      addedAt: it.createdAt.toISOString(),
-    })),
+    rarityBreakdown: toBuckets(rarities, [...RARITIES, "unknown"]),
+    manaCurve: curveOrder.map((label) => ({ label, value: curve.get(label) ?? 0 })),
+    topSets: toBuckets(sets).slice(0, 6),
+    recent: items.slice(0, 8).map(toCard),
+    mostValuable: items
+      .map(toCard)
+      .filter((c) => c.priceUsd > 0)
+      .sort((a, b) => b.priceUsd - a.priceUsd)
+      .slice(0, 5),
   };
 }

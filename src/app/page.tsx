@@ -1,30 +1,52 @@
 "use client";
 
 import Link from "next/link";
-import { BarChartCard, PieChartCard } from "@/components/charts";
-import { EmptyState, LoadError, Panel, PageHeader, Skeleton, Stat } from "@/components/ui";
+import { LayersIcon } from "lucide-react";
+import { BarList, ColourBreakdown, ManaCurve, RarityBreakdown } from "@/components/charts";
+import {
+  ActionLink,
+  EmptyState,
+  LoadError,
+  PageHeader,
+  Section,
+  SkeletonLines,
+  StatItem,
+  StatRow,
+  Surface,
+} from "@/components/patterns";
+import { CardPreview, CardThumb, FoilMark, ManaCost, Printing, SetSymbol } from "@/components/mtg";
 import { SparkIcon, WaveformIcon } from "@/components/icons";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/useApi";
-import type { DashboardData } from "@/lib/aggregate";
+import { useSets } from "@/lib/useSets";
+import { timeAgo } from "@/lib/timeAgo";
+import type { DashboardCard, DashboardData } from "@/lib/aggregate";
+
+const usd = (n: number) =>
+  n.toLocaleString(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2 });
 
 export default function DashboardPage() {
   const { data: d, error, loading, reload } = useApi<DashboardData>("/api/dashboard");
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-10">
       <PageHeader
         title="Dashboard"
-        lead="Everything you own, at a glance."
         actions={
           <>
-            <Link href="/collection/voice" className="btn btn-ghost text-sm">
-              <WaveformIcon size={16} />
-              Voice entry
-            </Link>
-            <Link href="/decks/new" className="btn text-sm">
-              <SparkIcon size={14} />
-              Build a deck
-            </Link>
+            <Button asChild variant="outline">
+              <Link href="/collection?add=voice">
+                <WaveformIcon size={16} />
+                Voice entry
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/decks/new">
+                <SparkIcon size={14} />
+                Build a deck
+              </Link>
+            </Button>
           </>
         }
       />
@@ -34,87 +56,93 @@ export default function DashboardPage() {
       ) : loading || !d ? (
         <DashboardSkeleton />
       ) : d.totalCards === 0 ? (
-        <EmptyState icon="🃏" title="Your collection is empty">
-          Add cards from the{" "}
-          <Link href="/collection" className="text-accent underline underline-offset-2">
-            Collection page
-          </Link>{" "}
-          — type them in, paste a list, or just say them out loud.
+        <EmptyState
+          icon={<LayersIcon />}
+          title="Your collection is empty"
+          action={<ActionLink href="/collection">Add your first cards</ActionLink>}
+        >
+          Type cards in by name, paste a list from another app, or read them out with voice
+          entry. Prices, sets and art are filled in from Scryfall.
         </EmptyState>
       ) : (
         <>
-          <div className="stagger grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <Stat label="Total cards" count={d.totalCards} />
-            <Stat label="Unique cards" count={d.uniqueCards} />
-            <Stat
+          <StatRow className="ink-in">
+            <StatItem label="Total cards" count={d.totalCards} />
+            <StatItem label="Unique printings" count={d.uniqueCards} />
+            <StatItem
               label="Collection value"
               count={d.totalValueUsd}
               prefix="$"
               decimals={2}
-              sub="Scryfall USD"
+              emphasis
+              sub="Scryfall market price, USD"
             />
-            <Stat
-              label="Decks"
-              count={d.deckCount}
-              sub={d.decksByFormat.map((b) => `${b.value} ${b.label}`).join(" · ") || "none yet"}
-            />
+            {d.deckCount > 0 ? (
+              <StatItem
+                label="Decks"
+                count={d.deckCount}
+                sub={d.decksByFormat.map((b) => `${b.value} ${b.label}`).join(" · ")}
+              />
+            ) : (
+              <StatItem
+                label="Decks"
+                value={<span className="text-base font-medium text-muted-foreground">No decks yet</span>}
+                sub={<ActionLink href="/decks/new" className="text-xs">Create a deck</ActionLink>}
+              />
+            )}
+          </StatRow>
+
+          <div className="grid gap-x-12 gap-y-10 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
+            <div className="space-y-10">
+              <Section
+                title="Recently added"
+                actions={
+                  <Link
+                    href="/collection"
+                    className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    View collection
+                  </Link>
+                }
+              >
+                <ul className="stagger -mx-2">
+                  {d.recent.map((c, i) => (
+                    <RecentRow key={`${c.name}-${c.setCode}-${c.foil}-${i}`} card={c} />
+                  ))}
+                </ul>
+              </Section>
+
+              {d.mostValuable.length > 0 && (
+                <Section title="Most valuable" meta="per copy">
+                  <ol className="-mx-2">
+                    {d.mostValuable.map((c, i) => (
+                      <ValuableRow key={`${c.name}-${c.setCode}-${c.foil}`} card={c} rank={i + 1} />
+                    ))}
+                  </ol>
+                </Section>
+              )}
+            </div>
+
+            <Surface className="h-fit divide-y divide-border self-start [&>section]:p-5">
+              <Section title="Mana curve" meta="non-land cards">
+                <ManaCurve data={d.manaCurve} />
+              </Section>
+              <Section title="Colour breakdown">
+                <ColourBreakdown data={d.colorBreakdown} />
+              </Section>
+              <Section title="Rarity">
+                <RarityBreakdown data={d.rarityBreakdown} />
+              </Section>
+            </Surface>
           </div>
 
-          <div className="stagger grid gap-4 lg:grid-cols-2">
-            <Panel title="Colour breakdown" lift>
-              <PieChartCard data={d.colorBreakdown} />
-            </Panel>
-            <Panel title="Mana curve" lift>
-              <BarChartCard data={d.manaCurve} />
-            </Panel>
-            <Panel title="Card types" lift>
-              <BarChartCard data={d.typeBreakdown} />
-            </Panel>
-            <Panel title="Rarity" lift>
-              <PieChartCard data={d.rarityBreakdown} />
-            </Panel>
-          </div>
-
-          <div className="stagger grid gap-4 lg:grid-cols-2">
-            <Panel title="Top sets" lift>
-              <ul className="space-y-2 text-sm">
-                {d.topSets.map((s) => {
-                  const max = d.topSets[0]?.value || 1;
-                  return (
-                    <li key={s.label} className="flex items-center gap-3">
-                      <span className="w-12 shrink-0 font-mono text-xs text-muted">
-                        {s.label}
-                      </span>
-                      {/* Proportion bar — cheaper to read than a number alone. */}
-                      <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
-                        <span
-                          className="block h-full rounded-full bg-accent/70"
-                          style={{ width: `${(s.value / max) * 100}%` }}
-                        />
-                      </span>
-                      <span className="numeral w-8 shrink-0 text-right text-xs text-muted">
-                        {s.value}
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            </Panel>
-
-            <Panel title="Recently added" lift>
-              <ul className="divide-hairline text-sm">
-                {d.recent.map((r, i) => (
-                  <li key={i} className="flex items-baseline gap-2 py-1.5">
-                    <span className="numeral text-muted">{r.quantity}×</span>
-                    <span className="truncate">{r.name}</span>
-                    <span className="font-mono text-[11px] text-muted-dim">{r.setCode}</span>
-                    <span className="ml-auto shrink-0 text-xs text-muted-dim">
-                      {new Date(r.addedAt).toLocaleDateString()}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </Panel>
+          <div className="grid gap-x-12 gap-y-10 border-t border-border pt-8 md:grid-cols-2">
+            <Section title="Card types">
+              <BarList data={d.typeBreakdown} />
+            </Section>
+            <Section title="Top sets">
+              <BarList data={d.topSets} label={(b) => <SetName code={b.label} />} />
+            </Section>
           </div>
         </>
       )}
@@ -122,24 +150,106 @@ export default function DashboardPage() {
   );
 }
 
+function RecentRow({ card: c }: { card: DashboardCard }) {
+  return (
+    <li className="group flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50">
+      <CardPreview uri={c.imageUri} name={c.name}>
+        <span className="block">
+          <CardThumb uri={c.imageUri} name={c.name} />
+        </span>
+      </CardPreview>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate font-medium">{c.name}</span>
+          {c.foil && <FoilMark />}
+          <span className="hidden sm:inline-flex">
+            <ManaCost cost={c.manaCost} size={13} />
+          </span>
+        </div>
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-muted-foreground">
+          <Printing setCode={c.setCode} collectorNumber={c.collectorNumber} rarity={c.rarity} />
+          <span className="hidden truncate md:inline">{c.typeLine}</span>
+        </div>
+      </div>
+      <span className="numeral shrink-0 text-sm text-muted-foreground">×{c.quantity}</span>
+      <time
+        dateTime={c.addedAt}
+        title={new Date(c.addedAt).toLocaleString()}
+        className="w-20 shrink-0 text-right text-xs text-faint-foreground"
+      >
+        {timeAgo(c.addedAt)}
+      </time>
+    </li>
+  );
+}
+
+function ValuableRow({ card: c, rank }: { card: DashboardCard; rank: number }) {
+  return (
+    <li className="flex items-center gap-3 rounded-lg px-2 py-2 transition-colors hover:bg-muted/50">
+      <span className="numeral w-4 shrink-0 text-right text-xs text-faint-foreground">{rank}</span>
+      <CardPreview uri={c.imageUri} name={c.name}>
+        <span className="block">
+          <CardThumb uri={c.imageUri} name={c.name} />
+        </span>
+      </CardPreview>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate font-medium">{c.name}</span>
+          {c.foil && <FoilMark />}
+        </div>
+        <Printing
+          className="mt-0.5"
+          setCode={c.setCode}
+          collectorNumber={c.collectorNumber}
+          rarity={c.rarity}
+        />
+      </div>
+      {c.quantity > 1 && (
+        <span className="numeral shrink-0 text-xs text-faint-foreground">×{c.quantity}</span>
+      )}
+      <span className="numeral w-20 shrink-0 text-right text-sm font-medium text-primary">
+        {usd(c.priceUsd)}
+      </span>
+    </li>
+  );
+}
+
+/** A set's symbol and full name, falling back to the code until names load. */
+function SetName({ code }: { code: string }) {
+  const sets = useSets();
+  const name = sets?.[code]?.name;
+  return (
+    <span className="flex min-w-0 items-center gap-2" title={name ? `${name} (${code})` : code}>
+      <SetSymbol code={code} rarity="common" size={14} className="text-muted-foreground" />
+      <span className="truncate">{name ?? code}</span>
+    </span>
+  );
+}
+
 /** Mirrors the real layout, so nothing shifts when the data lands. */
 function DashboardSkeleton() {
   return (
-    <div className="space-y-8">
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <div className="space-y-10">
+      <div className="grid grid-cols-2 gap-6 sm:flex sm:gap-14">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-lg border border-border bg-surface p-4">
-            <div className="shimmer h-3 w-20 rounded-full" />
-            <div className="shimmer mt-3 h-7 w-16 rounded-full" />
+          <div key={i}>
+            <Skeleton className="h-3 w-20 rounded-full" />
+            <Skeleton className="mt-2.5 h-7 w-16 rounded-full" />
           </div>
         ))}
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Panel key={i} title="">
-            <Skeleton lines={5} />
-          </Panel>
-        ))}
+      <div className="grid gap-12 lg:grid-cols-[1.5fr_1fr]">
+        <div className="space-y-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <Skeleton className="h-8 w-11 rounded-[4px]" />
+              <Skeleton className="h-3.5 flex-1 rounded-full" />
+            </div>
+          ))}
+        </div>
+        <Surface className="p-5">
+          <SkeletonLines lines={6} />
+        </Surface>
       </div>
     </div>
   );

@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import { apiFetch } from "@/lib/authClient";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ImportResult {
   requested: number;
@@ -49,35 +52,38 @@ export function ImportPanel({ onChanged }: { onChanged?: () => void }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-muted">
-        One card name per line. <code className="font-mono">2x</code> / <code className="font-mono">2 </code>{" "}
-        quantity prefixes and trailing set codes are handled.
-      </p>
-      <textarea
-        className="input h-36 font-mono text-sm"
+      <Textarea
+        aria-label="Card list"
+        className="h-44 font-mono md:text-sm"
         placeholder={"4 Lightning Bolt\nRagavan, Nimble Pilferer\nSol Ring"}
         value={text}
         onChange={(e) => setText(e.target.value)}
       />
       <div className="flex items-center gap-3">
-        <input type="file" accept=".csv,.txt" onChange={onFile} className="text-sm text-muted" />
-        <button className="btn ml-auto" onClick={run} disabled={busy || !text.trim()}>
+        <Input
+          type="file"
+          accept=".csv,.txt"
+          aria-label="Import from file"
+          onChange={onFile}
+          className="w-auto max-w-64 cursor-pointer text-muted-foreground file:cursor-pointer file:text-primary"
+        />
+        <Button className="ml-auto" onClick={run} disabled={busy || !text.trim()}>
           {busy ? "Importing…" : "Import"}
-        </button>
+        </Button>
       </div>
 
-      {error && <p className="text-sm text-[color:var(--danger)]">{error}</p>}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       {result && (
-        <div className="rounded-lg border border-border bg-surface-2 p-3 text-sm">
-          <p className="text-[color:var(--success)]">
+        <div className="border-t border-border pt-3 text-sm">
+          <p className="text-success">
             Added {result.addedCopies} copies across {result.matchedCount} of {result.requested} names.
           </p>
           {result.unmatched.length > 0 && (
             <details className="mt-2">
-              <summary className="cursor-pointer text-accent">
+              <summary className="cursor-pointer text-primary">
                 {result.unmatched.length} not found
               </summary>
-              <ul className="mt-1 list-disc pl-5 text-muted">
+              <ul className="mt-1 list-disc pl-5 text-muted-foreground">
                 {result.unmatched.map((u) => (
                   <li key={u}>{u}</li>
                 ))}

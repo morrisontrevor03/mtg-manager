@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { confirmResetPassword, resetPassword, signIn } from "aws-amplify/auth";
 import { AuthCard, Field, FormError, FormNotice } from "@/components/auth/AuthForm";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { Button } from "@/components/ui/button";
 import { authErrorMessage, PASSWORD_RULES } from "@/lib/authClient";
 
 function ResetFlow() {
@@ -89,9 +90,9 @@ function ResetFlow() {
             onChange={(e) => setPassword(e.target.value)}
           />
           <FormError message={error} />
-          <button className="btn w-full" disabled={busy}>
+          <Button type="submit" className="w-full" disabled={busy}>
             {busy ? "Saving…" : "Save and sign in"}
-          </button>
+          </Button>
         </form>
       </AuthCard>
     );
@@ -114,9 +115,9 @@ function ResetFlow() {
           onChange={(e) => setEmail(e.target.value)}
         />
         <FormError message={error} />
-        <button className="btn w-full" disabled={busy}>
+        <Button type="submit" className="w-full" disabled={busy}>
           {busy ? "Sending…" : "Send reset code"}
-        </button>
+        </Button>
       </form>
     </AuthCard>
   );

@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/authClient";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 /**
  * `onChanged` replaces what used to be `router.refresh()`. The frontend is a
@@ -69,20 +73,21 @@ export function AddCardForm({ onChanged }: { onChanged?: () => void }) {
   return (
     <form onSubmit={submit} className="space-y-3">
       <div className="relative">
-        <input
-          className="input"
-          placeholder="Card name (e.g. Lightning Bolt)"
+        <Input
+          aria-label="Card name"
+          placeholder="Card name, e.g. Lightning Bolt"
           value={name}
           onChange={(e) => setName(e.target.value)}
           autoComplete="off"
+          autoFocus
         />
         {suggestions.length > 0 && (
-          <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-border bg-surface-2 text-sm">
+          <ul className="fade-in absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-border-strong bg-popover p-1 text-sm text-popover-foreground shadow-raised-lg">
             {suggestions.map((s) => (
               <li key={s}>
                 <button
                   type="button"
-                  className="block w-full px-3 py-1.5 text-left hover:bg-accent/20"
+                  className="block w-full rounded-sm px-2 py-1.5 text-left transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
                   onClick={() => {
                     setName(s);
                     setSuggestions([]);
@@ -97,28 +102,28 @@ export function AddCardForm({ onChanged }: { onChanged?: () => void }) {
       </div>
 
       <div className="flex items-center gap-3">
-        <label className="text-sm text-muted">
+        <Label className="font-normal text-muted-foreground">
           Qty
-          <input
+          <Input
             type="number"
             min={1}
             max={999}
-            className="input ml-2 w-20"
+            className="w-20"
             value={quantity}
             onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
           />
-        </label>
-        <label className="flex items-center gap-2 text-sm text-muted">
-          <input type="checkbox" checked={foil} onChange={(e) => setFoil(e.target.checked)} />
+        </Label>
+        <Label className="font-normal text-muted-foreground">
+          <Checkbox checked={foil} onCheckedChange={(v) => setFoil(v === true)} />
           Foil
-        </label>
-        <button className="btn ml-auto" disabled={busy}>
+        </Label>
+        <Button type="submit" className="ml-auto" disabled={busy}>
           {busy ? "Adding…" : "Add"}
-        </button>
+        </Button>
       </div>
 
       {msg && (
-        <p className={`text-sm ${msg.kind === "ok" ? "text-[color:var(--success)]" : "text-[color:var(--danger)]"}`}>{msg.text}</p>
+        <p className={`text-sm ${msg.kind === "ok" ? "text-success" : "text-destructive"}`}>{msg.text}</p>
       )}
     </form>
   );

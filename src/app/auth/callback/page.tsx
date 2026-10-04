@@ -7,6 +7,7 @@ import { Hub } from "aws-amplify/utils";
 import { AuthCard } from "@/components/auth/AuthForm";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authErrorMessage } from "@/lib/authClient";
+import { Button } from "@/components/ui/button";
 
 /**
  * Where Google sends the browser back to. Amplify's OAuth listener (imported in
@@ -39,9 +40,9 @@ export default function AuthCallbackPage() {
       lead={error ?? "Hold on a moment while we finish connecting your Google account."}
     >
       {error && (
-        <Link href="/login" className="btn w-full">
-          Back to sign in
-        </Link>
+        <Button asChild className="w-full">
+          <Link href="/login">Back to sign in</Link>
+        </Button>
       )}
     </AuthCard>
   );

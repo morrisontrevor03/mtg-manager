@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import Image from "next/image";
-import { Badge, ColorPips, EmptyState, ManaCost, Panel } from "@/components/ui";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { cn } from "cn";
+import { AlertTriangleIcon, CheckIcon, LoaderCircleIcon, MicOffIcon } from "lucide-react";
+import { CardThumb, FoilMark, Printing } from "@/components/mtg";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Kbd } from "@/components/ui/kbd";
 import { StopIcon, WaveformIcon } from "@/components/icons";
 import { useSpeechRecognition } from "@/components/collection/useSpeechRecognition";
 import { beep } from "@/lib/beep";
@@ -63,16 +67,12 @@ interface MatchResponse {
 let seq = 0;
 const nextId = () => `e${++seq}`;
 
-/** A spoken command, styled like a key cap. */
-function Kbd({ children }: { children: ReactNode }) {
-  return (
-    <span className="mx-0.5 rounded border border-border bg-surface-2 px-1.5 py-0.5 font-mono text-[10px] text-foreground">
-      {children}
-    </span>
-  );
-}
-
-export function VoiceEntry() {
+/**
+ * Hands-free card entry. Rendered as the body of the voice dialog on the
+ * Collection page; `onDone` closes it. Each spoken phrase becomes one entry
+ * that is matched, enriched from Scryfall and added while the mic stays live.
+ */
+export function VoiceEntry({ onDone }: { onDone?: () => void }) {
   const [entries, setEntries] = useState<Entry[]>([]);
 
   // Voice commands arrive from async recogniser events and need the current
@@ -281,113 +281,178 @@ export function VoiceEntry() {
       (e.status === "confirming" || e.status === "unresolved" || e.status === "error"),
   ).length;
 
+
   if (support === "unsupported") {
     return (
-      <Panel title="Voice entry unavailable">
-        <p className="text-accent">
-          This browser doesn&apos;t support the Web Speech API. Voice entry works in Chrome,
-          Edge, and Safari.
-        </p>
-        <p className="mt-2 text-sm text-muted">
-          You can still add cards with the manual form or the list import on the{" "}
-          <a href="/collection" className="text-accent underline">
-            Collection page
-          </a>
-          .
-        </p>
-      </Panel>
+      <div className="flex gap-3 rounded-lg bg-muted/60 p-4 text-sm">
+        <MicOffIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
+        <div>
+          <p className="font-medium">This browser can&rsquo;t do speech recognition</p>
+          <p className="mt-1 text-muted-foreground">
+            Voice entry works in Chrome, Edge and Safari. Here, use Add manually or Import list
+            instead.
+          </p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <Panel>
-        <div className="flex flex-wrap items-center gap-4">
-          <button
+    <div className="space-y-5" data-listening={listening}>
+      {/* Stage: the control, the waveform, and what is being heard right now. */}
+      <div className="rounded-lg bg-background/70 px-4 py-4 ring-1 ring-border/70 sm:px-5">
+        <div className="flex items-center gap-4">
+          <Button
             onClick={toggle}
-            className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
-              listening
-                ? "listening-halo border border-[color:var(--danger)]/50 bg-[color:var(--danger)]/15 text-[color:var(--danger)]"
-                : "btn"
-            }`}
+            variant={listening ? "destructive" : "default"}
+            className={cn("size-12 shrink-0 rounded-full", listening && "listening-ring")}
             aria-label={listening ? "Stop listening" : "Start listening"}
           >
-            {listening ? <StopIcon size={20} /> : <WaveformIcon size={26} />}
-          </button>
+            {listening ? <StopIcon className="size-4" /> : <WaveformIcon className="size-5" />}
+          </Button>
 
-          <div className="min-w-0 flex-1">
-            {listening ? (
-              <div className="flex items-center gap-2">
-                <WaveformIcon size={16} active className="text-[color:var(--danger)]" />
-                <span className="text-sm font-medium">Listening — say a card name</span>
-              </div>
-            ) : (
-              <span className="text-sm font-medium">Tap to start listening</span>
-            )}
-            <p className="mt-1 min-h-6 truncate text-lg text-muted">
-              {interim || (listening ? "…" : "")}
-            </p>
-          </div>
+          <Waveform className={listening ? "text-foreground/75" : "text-muted-foreground/35"} />
 
-          <div className="flex gap-5 text-center">
-            <div>
-              <div className="display numeral text-2xl font-semibold">{added.length}</div>
-              <div className="eyebrow">cards</div>
-            </div>
-            <div>
-              <div className="display numeral text-2xl font-semibold">{copies}</div>
-              <div className="eyebrow">copies</div>
-            </div>
-            {needsAttention > 0 && (
-              <div>
-                <div className="display numeral text-2xl font-semibold text-accent">
-                  {needsAttention}
-                </div>
-                <div className="eyebrow">to review</div>
-              </div>
+          <span
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 text-xs",
+              listening ? "text-foreground" : "text-muted-foreground",
             )}
-          </div>
+          >
+            <span
+              aria-hidden
+              className={cn(
+                "size-1.5 rounded-full",
+                listening ? "pulse-dot bg-destructive" : "bg-faint-foreground",
+              )}
+            />
+            {listening ? "Listening" : "Paused"}
+          </span>
         </div>
 
-        {error && <p className="mt-3 text-sm text-[color:var(--danger)]">{error}</p>}
-
-        <p className="mt-4 border-t border-border pt-3 text-xs text-muted">
-          Try <em className="text-foreground">&ldquo;four Lightning Bolt&rdquo;</em> or{" "}
-          <em className="text-foreground">&ldquo;foil Sol Ring&rdquo;</em>. Say{" "}
-          <Kbd>one</Kbd> <Kbd>two</Kbd> <Kbd>three</Kbd> to pick a suggestion,{" "}
-          <Kbd>undo</Kbd> to remove the last card, <Kbd>stop</Kbd> to finish.
+        <p
+          aria-live="polite"
+          className={cn(
+            "mt-3 min-h-7 truncate text-lg",
+            interim ? "text-foreground italic" : "text-faint-foreground",
+          )}
+        >
+          {interim
+            ? `“${interim}”`
+            : listening
+              ? "Say a card name, then pause…"
+              : "Press the button and read your cards out, one at a time."}
         </p>
-      </Panel>
 
-      {entries.length === 0 ? (
-        <EmptyState icon="🂠" title="Nothing captured yet">
-          Start listening and announce your first card. It gets matched, enriched, and added
-          without you touching the keyboard.
-        </EmptyState>
-      ) : (
-        <ul className="space-y-3">
-          {entries.map((entry) => (
-            <li key={entry.id} className={entry.dismissing ? "settle-out" : undefined}>
-              <EntryCard
-                entry={entry}
-                onPick={(c) => resolveCandidate(entry, c)}
-                onSkip={() => update(entry.id, { status: "unresolved", candidates: undefined })}
-                onUndo={() => void undoEntry(entry)}
-                onRetry={(name) => void enrich(entry.id, name, entry.quantity, entry.foil)}
-                onDismiss={() => dismiss(entry.id)}
-                onEditingChange={(editing) => update(entry.id, { editing })}
-              />
-            </li>
-          ))}
-        </ul>
-      )}
+        {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+      </div>
+
+      {/* What was heard, newest first. */}
+      <div>
+        <div className="mb-1.5 flex items-baseline gap-3">
+          <h3 className="text-sm font-medium">Detected cards</h3>
+          {added.length > 0 && (
+            <span className="text-xs text-muted-foreground">
+              <span className="numeral">{added.length}</span> added ·{" "}
+              <span className="numeral">{copies}</span> {copies === 1 ? "copy" : "copies"}
+            </span>
+          )}
+          {needsAttention > 0 && (
+            <span className="text-xs text-primary">
+              <span className="numeral">{needsAttention}</span> to review
+            </span>
+          )}
+        </div>
+
+        {entries.length === 0 ? (
+          <p className="border-t border-border py-6 text-sm text-faint-foreground">
+            Nothing yet. Try <em className="text-muted-foreground">&ldquo;four Lightning Bolt&rdquo;</em>{" "}
+            or <em className="text-muted-foreground">&ldquo;foil Sol Ring&rdquo;</em>.
+          </p>
+        ) : (
+          <ul className="max-h-[42vh] divide-y divide-border/70 overflow-y-auto border-t border-border">
+            {entries.map((entry) => (
+              <li key={entry.id} className={entry.dismissing ? "settle-out" : undefined}>
+                <EntryRow
+                  entry={entry}
+                  onPick={(c) => resolveCandidate(entry, c)}
+                  onSkip={() => update(entry.id, { status: "unresolved", candidates: undefined })}
+                  onUndo={() => void undoEntry(entry)}
+                  onRetry={(name) => void enrich(entry.id, name, entry.quantity, entry.foil)}
+                  onDismiss={() => dismiss(entry.id)}
+                  onEditingChange={(editing) => update(entry.id, { editing })}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-border pt-4">
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Say <Kbd>one</Kbd> <Kbd>two</Kbd> <Kbd>three</Kbd> to pick a suggestion,{" "}
+          <Kbd>undo</Kbd> to take back the last card, <Kbd>stop</Kbd> to finish.
+        </p>
+        {onDone && (
+          <Button
+            variant="outline"
+            className="ml-auto"
+            onClick={() => {
+              stop();
+              onDone();
+            }}
+          >
+            Done
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// --- Waveform ----------------------------------------------------------------
+
+/*
+ * Fixed, hand-shaped bar heights (tallest in the middle) with per-bar timing,
+ * so the strip moves like speech rather than a metronome. It is a listening
+ * indicator, not a level meter: the recogniser does not expose audio levels.
+ */
+const BARS = Array.from({ length: 36 }, (_, i) => {
+  const centre = 1 - Math.abs(i - 17.5) / 18;
+  const jitter = Math.abs(Math.sin(i * 2.3) * Math.cos(i * 0.7));
+  return {
+    height: Math.round(22 + 70 * (0.35 * centre + 0.65 * jitter)),
+    duration: 0.62 + ((i * 37) % 50) / 100,
+    delay: -((i * 53) % 90) / 100,
+  };
+});
+
+function Waveform({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden
+      className={cn("flex h-10 min-w-0 flex-1 items-center gap-[3px] transition-colors", className)}
+    >
+      {BARS.map((b, i) => (
+        <span
+          key={i}
+          className="voice-bar w-[3px] shrink-0 rounded-full bg-current max-sm:[&:nth-child(n+25)]:hidden"
+          style={
+            {
+              height: `${b.height}%`,
+              "--bar-dur": `${b.duration}s`,
+              "--bar-delay": `${b.delay}s`,
+            } as CSSProperties
+          }
+        />
+      ))}
     </div>
   );
 }
 
 // --- One entry, rendered per stage ---------------------------------------
 
-function EntryCard({
+function EntryRow({
   entry,
   onPick,
   onSkip,
@@ -415,169 +480,146 @@ function EntryCard({
     if (wasEditing !== isEditing) onEditingChange(isEditing);
   }
 
-  const heading = (
-    <div className="flex items-baseline gap-2">
-      <span className="font-medium">
-        {entry.quantity > 1 && `${entry.quantity}× `}
-        {entry.matchedName ?? entry.raw}
-      </span>
-      {entry.foil && <span className="text-xs text-accent">✦ foil</span>}
-      {entry.score !== undefined && entry.status !== "enriched" && (
-        <span className="text-xs text-muted">{Math.round(entry.score * 100)}% match</span>
-      )}
-    </div>
-  );
-
-  const transcript = <p className="text-xs text-muted">heard: &ldquo;{entry.raw}&rdquo;</p>;
+  const qty = <span className="numeral text-muted-foreground"> ×{entry.quantity}</span>;
 
   switch (entry.status) {
     case "heard":
-      return (
-        <div className="card fade-in flex items-center gap-3 p-3.5">
-          <span className="pulse-dot h-2 w-2 shrink-0 rounded-full bg-accent" />
-          <span className="truncate text-muted">&ldquo;{entry.raw}&rdquo;</span>
-          <span className="eyebrow ml-auto shrink-0">matching</span>
-        </div>
-      );
-
     case "matched":
     case "enriching":
       return (
-        <div className="card fade-in flex gap-3.5 p-3.5">
-          <div className="shimmer h-[88px] w-16 shrink-0 rounded-lg" />
-          <div className="min-w-0 flex-1 space-y-2">
-            {heading}
-            {transcript}
-            <div className="shimmer h-3 w-2/3 rounded-full" />
-            <div className="shimmer h-3 w-1/3 rounded-full" />
-          </div>
-          <span className="eyebrow shrink-0 self-start">enriching</span>
+        <div className="fade-in flex items-center gap-3 py-2.5">
+          <span className="flex h-8 w-11 shrink-0 items-center justify-center rounded-[4px] bg-muted">
+            <LoaderCircleIcon aria-hidden className="size-3.5 animate-spin text-faint-foreground" />
+          </span>
+          <span className="min-w-0 flex-1 truncate text-sm">
+            {entry.matchedName ? (
+              <>
+                {entry.matchedName}
+                {qty}
+              </>
+            ) : (
+              <span className="text-muted-foreground italic">&ldquo;{entry.raw}&rdquo;</span>
+            )}
+          </span>
+          <span className="shrink-0 text-xs text-faint-foreground">
+            {entry.status === "heard" ? "Matching…" : "Adding…"}
+          </span>
         </div>
       );
 
     case "enriched": {
       const card = entry.card;
-      const usd = parseFloat(
-        (entry.foil ? card?.prices?.usd_foil ?? card?.prices?.usd : card?.prices?.usd) ?? "",
-      );
       return (
-        <div className="card card-lift landed flex gap-3.5 p-3.5">
-          {card?.imageUri ? (
-            <Image
-              src={card.imageUri}
-              alt={card.name}
-              width={64}
-              height={88}
-              className="fade-in h-[88px] w-16 shrink-0 rounded-lg object-cover shadow-[0_6px_16px_-8px_rgba(0,0,0,0.9)] ring-1 ring-border"
-              unoptimized
-            />
-          ) : (
-            <div className="h-[88px] w-16 shrink-0 rounded-lg bg-surface-2 ring-1 ring-border" />
-          )}
-          <div className="min-w-0 flex-1 space-y-1">
-            <div className="flex flex-wrap items-baseline gap-2">
+        <div className="landed group flex items-center gap-3 py-2.5">
+          <CardThumb uri={card?.imageUri} name={card?.name ?? entry.matchedName ?? ""} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
               <a
                 href={card?.scryfallUri}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-medium hover:underline"
+                className="truncate text-sm font-medium hover:underline"
               >
-                {entry.quantity > 1 && `${entry.quantity}× `}
                 {card?.name ?? entry.matchedName}
               </a>
-              <ManaCost cost={card?.manaCost ?? ""} />
-              {card?.colors && <ColorPips colors={card.colors} />}
-              {entry.foil && <span className="text-xs text-accent">✦ foil</span>}
+              <span className="numeral text-sm text-muted-foreground">×{entry.quantity}</span>
+              {entry.foil && <FoilMark />}
             </div>
-            <p className="text-sm text-muted">{card?.typeLine}</p>
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-              <span className="font-mono">
-                {card?.setCode} {card?.collectorNumber}
-              </span>
-              {card?.rarity && <Badge>{card.rarity}</Badge>}
-              {Number.isFinite(usd) && usd > 0 && <span>${usd.toFixed(2)}</span>}
-            </div>
-            {transcript}
+            {card && (
+              <Printing
+                className="mt-0.5"
+                setCode={card.setCode}
+                collectorNumber={card.collectorNumber}
+                rarity={card.rarity}
+              />
+            )}
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1">
-            <Badge tone="good">added</Badge>
-            <button onClick={onUndo} className="text-xs text-[color:var(--danger)] hover:underline">
-              undo
-            </button>
-          </div>
+          <Button
+            variant="ghost"
+            size="xs"
+            onClick={onUndo}
+            className="opacity-0 group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
+          >
+            Undo
+          </Button>
+          <CheckIcon aria-label="Added" className="size-4 shrink-0 text-success" />
         </div>
       );
     }
 
     case "confirming":
       return (
-        <div className="card fade-in border-accent/40 p-3">
-          <div className="mb-2">
-            <span className="font-medium text-accent">Did you mean…</span>
-            {transcript}
-          </div>
-          <ul className="space-y-1">
+        <div className="fade-in py-3">
+          <p className="text-sm">
+            <span className="text-primary">Which card?</span>{" "}
+            <span className="text-muted-foreground italic">heard &ldquo;{entry.raw}&rdquo;</span>
+          </p>
+          <ol className="mt-2 grid gap-1 sm:grid-cols-3">
             {entry.candidates?.map((c, i) => (
               <li key={c.name}>
                 <button
                   onClick={() => onPick(c)}
-                  className="flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left hover:bg-accent/20"
+                  className="flex w-full items-center gap-2 rounded-md bg-muted/70 px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
                 >
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-surface-2 text-xs font-bold">
-                    {i + 1}
+                  <Kbd>{i + 1}</Kbd>
+                  <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                  <span className="numeral text-[11px] text-faint-foreground">
+                    {Math.round(c.score * 100)}%
                   </span>
-                  <span className="flex-1">
-                    {entry.quantity > 1 && `${entry.quantity}× `}
-                    {c.name}
-                  </span>
-                  <span className="text-xs text-muted">{Math.round(c.score * 100)}%</span>
                 </button>
               </li>
             ))}
-          </ul>
-          <button onClick={onSkip} className="mt-2 text-xs text-muted hover:underline">
-            none of these
-          </button>
+          </ol>
+          <Button variant="link" size="xs" onClick={onSkip} className="mt-1 px-0 text-muted-foreground">
+            None of these
+          </Button>
         </div>
       );
 
     case "unresolved":
     case "error":
       return (
-        <div className="card fade-in border-accent/40 p-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge tone="warn">{entry.status === "error" ? "failed" : "no match"}</Badge>
-            <span className="text-sm text-muted">&ldquo;{entry.raw}&rdquo;</span>
+        <div className="fade-in py-3">
+          <div className="flex items-center gap-2 text-sm">
+            <AlertTriangleIcon aria-hidden className="size-4 shrink-0 text-primary" />
+            <span className="min-w-0 truncate">
+              {entry.status === "error" ? "Couldn’t add" : "No match for"}{" "}
+              <span className="text-muted-foreground italic">&ldquo;{entry.raw}&rdquo;</span>
+            </span>
             {/* Say so up front, so the row vanishing later is expected. */}
             {entry.status === "unresolved" && !entry.editing && (
-              <span className="text-[11px] text-muted-dim">clears when the next card lands</span>
+              <span className="hidden shrink-0 text-[11px] text-faint-foreground sm:inline">
+                clears when the next card lands
+              </span>
             )}
-            <button
+            <Button
+              variant="ghost"
+              size="xs"
               onClick={onDismiss}
-              className="ml-auto text-xs text-muted hover:underline"
-              aria-label="Dismiss"
+              className="ml-auto text-muted-foreground"
             >
-              dismiss
-            </button>
+              Dismiss
+            </Button>
           </div>
-          {entry.message && <p className="mt-1 text-xs text-[color:var(--danger)]">{entry.message}</p>}
+          {entry.message && <p className="mt-1 pl-6 text-xs text-destructive">{entry.message}</p>}
           <form
-            className="mt-2 flex gap-2"
+            className="mt-2 flex gap-2 pl-6"
             onSubmit={(e) => {
               e.preventDefault();
               const name = correction.trim();
               if (name) onRetry(name);
             }}
           >
-            <input
-              className="input"
-              placeholder="Type the correct card name…"
+            <Input
+              aria-label="Correct card name"
+              placeholder="Type the card name"
+              className="h-8"
               value={correction}
               onChange={(e) => editCorrection(e.target.value)}
             />
-            <button className="btn shrink-0 text-sm" disabled={!correction.trim()}>
+            <Button type="submit" size="sm" variant="outline" disabled={!correction.trim()}>
               Add
-            </button>
+            </Button>
           </form>
         </div>
       );

@@ -1,4 +1,11 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+/*
+ * The app is dark-only, but shadcn primitives express part of their styling
+ * through `dark:` variants. `<html class="dark">` switches those on.
+ */
+@custom-variant dark (&:is(.dark *));
 
 /* ==========================================================================
    Parchment & ink — a dark, warm, tactile theme.
@@ -7,29 +14,96 @@
    blue-black, so card art and mana colours sit on something that feels like a
    card-shop table. Motion is physical: things lift, tilt, and settle like
    objects, and ink bleeds in rather than fading.
+
+   Tokens follow the shadcn/ui contract (background, card, primary, muted, …)
+   so every primitive in `src/components/ui/` picks the theme up unchanged.
+   The rule of thumb for the shadcn names:
+
+     primary            burnished amber — the one emphasis colour
+     card               the raised surface panels sit on
+     muted / secondary  a step up: wells, inputs, quiet buttons
+     accent             a step further: hover and pressed states (NOT amber)
+     muted-foreground   secondary text
    ========================================================================== */
 
 :root {
-  /* Warm charcoals, darkest first. */
+  color-scheme: dark;
+
+  /* Warm charcoals, darkest first: background → card → muted → accent. */
   --background: #120f0c;
-  --surface: #1c1712;
-  --surface-2: #272019;
-  --surface-3: #322a20;
-  --border: #382f24;
-  --border-strong: #4d4030;
-
-  /* Aged paper. */
   --foreground: #f2e9d8;
-  --muted: #a3947c;
-  --muted-dim: #7a6d59;
 
-  /* Warm amber accent — burnished, never neon. */
-  --accent: #d6a04a;
-  --accent-soft: #b8842f;
-  --accent-ink: #241a09;
+  --card: #1c1712;
+  --card-foreground: #f2e9d8;
+  --popover: #272019;
+  --popover-foreground: #f2e9d8;
 
-  --danger: #c4593f;
+  /* Warm amber — burnished, never neon. `primary-soft` is the lower stop of the
+     button gradient. */
+  --primary: #d6a04a;
+  --primary-soft: #b8842f;
+  --primary-foreground: #241a09;
+
+  --secondary: #272019;
+  --secondary-foreground: #f2e9d8;
+  --muted: #272019;
+  --muted-foreground: #a3947c;
+  --accent: #322a20;
+  --accent-foreground: #f2e9d8;
+
+  --destructive: #c4593f;
+  --destructive-foreground: #fbeee6;
+
+  --border: #382f24;
+  --input: #382f24;
+  --ring: #d6a04a;
+
+  /* --- Extensions beyond the shadcn set -------------------------------- */
+
+  /* A hover-strength border, and the faintest legible text (set codes, dates). */
+  --border-strong: #4d4030;
+  --faint-foreground: #7a6d59;
+
+  /* Status hues, warmed to match. Warnings use `primary`. */
   --success: #8aa363;
+  --info: #5b9bd9;
+
+  /*
+   * Rarity, in the expansion-symbol colours printed on real cards: black
+   * (lifted to read on charcoal), silver, gold, red-orange. Game data, like
+   * the mana colours, so they never stand in for theme colours.
+   */
+  --rarity-common: #8f8576;
+  --rarity-uncommon: #b4c2cc;
+  --rarity-rare: #d9b35f;
+  --rarity-mythic: #e0703a;
+  --rarity-special: #a78bc9;
+
+  /* Charts: amber first, then the mana hues. Mana-identity charts override
+     these per label (see components/charts.tsx). */
+  --chart-1: #d6a04a;
+  --chart-2: #4a91d6;
+  --chart-3: #6fa25c;
+  --chart-4: #d4573d;
+  --chart-5: #a9836b;
+
+  --sidebar: #1c1712;
+  --sidebar-foreground: #f2e9d8;
+  --sidebar-primary: #d6a04a;
+  --sidebar-primary-foreground: #241a09;
+  --sidebar-accent: #322a20;
+  --sidebar-accent-foreground: #f2e9d8;
+  --sidebar-border: #382f24;
+  --sidebar-ring: #d6a04a;
+
+  /*
+   * 0.625rem base. The scale is a hierarchy, not one radius everywhere:
+   *   sm  6px   inputs, selects, small chips
+   *   md  8px   buttons and toggles
+   *   lg  10px  utility surfaces: popovers, menus, alerts, thumbnails
+   *   xl  14px  major panels and dialogs
+   */
+  --radius: 0.625rem;
 
   /* Elevation, warm-tinted rather than neutral black. */
   --shadow-sm: 0 1px 2px rgba(20, 12, 4, 0.5);
@@ -46,21 +120,69 @@
 
 @theme inline {
   --color-background: var(--background);
-  --color-surface: var(--surface);
-  --color-surface-2: var(--surface-2);
-  --color-surface-3: var(--surface-3);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-soft: var(--primary-soft);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
-  --color-foreground: var(--foreground);
-  --color-muted: var(--muted);
-  --color-muted-dim: var(--muted-dim);
-  --color-accent: var(--accent);
-  --color-accent-soft: var(--accent-soft);
-  --color-danger: var(--danger);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-faint-foreground: var(--faint-foreground);
   --color-success: var(--success);
+  --color-info: var(--info);
+  --color-rarity-common: var(--rarity-common);
+  --color-rarity-uncommon: var(--rarity-uncommon);
+  --color-rarity-rare: var(--rarity-rare);
+  --color-rarity-mythic: var(--rarity-mythic);
+  --color-rarity-special: var(--rarity-special);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+
+  --shadow-hairline: var(--hairline);
+  --shadow-raised: var(--hairline), var(--shadow-md);
+  --shadow-raised-lg: var(--hairline), var(--shadow-lg);
+
+  --ease-settle: var(--ease-settle);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-fraunces);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
 }
 
 /* --- Page ---------------------------------------------------------------- */
@@ -69,10 +191,8 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  /* Warm light pooling at the top, as if over a table. */
-  background-image:
-    radial-gradient(900px 420px at 50% -280px, rgba(214, 160, 74, 0.1), transparent 70%),
-    radial-gradient(700px 380px at 90% 4%, rgba(160, 96, 48, 0.055), transparent 72%);
+  /* A single faint pool of warm light at the top, as if over a table. */
+  background-image: radial-gradient(1100px 380px at 50% -260px, rgba(214, 160, 74, 0.06), transparent 70%);
   background-attachment: fixed;
 }
 
@@ -123,12 +243,25 @@ body > * {
   text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
 }
 
+/*
+ * Small caps for collector metadata only: set codes, rarity, collector
+ * numbers. Section headings are sentence case (see `Section` in patterns.tsx);
+ * a page full of letter-spaced capitals reads as a template, not an archive.
+ */
 .eyebrow {
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.13em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--muted-foreground);
+}
+
+.meta {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--faint-foreground);
 }
 
 .numeral {
@@ -138,20 +271,50 @@ body > * {
 
 /* --- Surfaces ------------------------------------------------------------ */
 
-.card {
-  background:
-    linear-gradient(180deg, rgba(255, 244, 224, 0.028) 0%, transparent 42%),
-    var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 0.875rem;
-  box-shadow: var(--hairline), var(--shadow-md);
+/*
+ * Three surface levels, darkest first:
+ *   canvas (--background)   the page itself; most content sits straight on it
+ *   raised (--card)         .paper: the few panels that group a distinct thing
+ *   interactive (--muted)   controls, wells, hovered rows
+ * Depth comes from the step between levels, not from a border on everything.
+ */
+.paper {
+  background: var(--card);
+}
+
+/*
+ * Expansion symbol, tinted by rarity like the printed card. Scryfall's set
+ * SVGs are single-colour, so the SVG is used as a mask and the colour comes
+ * from `background-color` (default: currentColor).
+ */
+.set-symbol {
+  display: inline-block;
+  flex-shrink: 0;
+  background-color: currentColor;
+  -webkit-mask: var(--set-icon) center / contain no-repeat;
+  mask: var(--set-icon) center / contain no-repeat;
+}
+
+/* Foil: a faint, slow-moving spectral sheen on the label only. */
+.foil-text {
+  background: linear-gradient(100deg, #e6c27a, #b8d4c8, #c9b3e0, #e6c27a);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/*
+ * Opt-in tactility: the card lifts and tips slightly, like being picked up.
+ * Reserve it for things that are physically cards (art, deck tiles), not for
+ * every panel.
+ */
+.card-lift {
   transition:
     transform var(--dur) var(--ease-settle),
     box-shadow var(--dur) var(--ease-settle),
     border-color var(--dur) var(--ease-settle);
 }
-
-/* Opt-in tactility: the card lifts and tips slightly, like being picked up. */
 .card-lift:hover {
   transform: translateY(-3px) rotate(-0.35deg);
   box-shadow: var(--hairline), var(--shadow-lg);
@@ -168,75 +331,36 @@ body > * {
 
 /* --- Controls ------------------------------------------------------------ */
 
-.input {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  color: var(--foreground);
-  width: 100%;
-  transition:
-    border-color var(--dur-fast) var(--ease-settle),
-    box-shadow var(--dur-fast) var(--ease-settle),
-    background-color var(--dur-fast) var(--ease-settle);
-}
-.input::placeholder {
-  color: var(--muted-dim);
-}
-.input:hover {
-  border-color: var(--border-strong);
-}
-.input:focus {
-  outline: none;
-  background: var(--surface-3);
-  border-color: var(--accent-soft);
-  box-shadow: 0 0 0 3px rgba(214, 160, 74, 0.16);
-}
-
-.btn {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  background: linear-gradient(180deg, var(--accent) 0%, var(--accent-soft) 100%);
-  color: var(--accent-ink);
-  border: 1px solid rgba(0, 0, 0, 0.25);
-  border-radius: 0.5rem;
-  padding: 0.5rem 1rem;
-  font-weight: 650;
-  cursor: pointer;
-  overflow: hidden;
-  box-shadow: inset 0 1px 0 rgba(255, 240, 214, 0.28), var(--shadow-sm);
+/*
+ * Physical press, shared by every <Button> variant: up a pixel on hover, down
+ * and slightly smaller when held, like a key.
+ */
+.press {
   transition:
     transform var(--dur-fast) var(--ease-settle),
     box-shadow var(--dur-fast) var(--ease-settle),
+    background-color var(--dur-fast) var(--ease-settle),
+    border-color var(--dur-fast) var(--ease-settle),
+    color var(--dur-fast) var(--ease-settle),
     filter var(--dur-fast) var(--ease-settle);
 }
-.btn:hover:not(:disabled) {
-  filter: brightness(1.07);
+.press:hover:not(:disabled) {
   transform: translateY(-1px);
-  box-shadow: inset 0 1px 0 rgba(255, 240, 214, 0.32), var(--shadow-md);
 }
-/* Pressed, like a physical key. */
-.btn:active:not(:disabled) {
+.press:active:not(:disabled) {
   transform: translateY(1px) scale(0.988);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
-}
-.btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
 }
 
-/* A sheen that wipes across the button on hover — the one flourish. */
-.btn::after {
+/* A sheen that wipes across the primary button on hover — the one flourish. */
+.sheen {
+  position: relative;
+  overflow: hidden;
+}
+.sheen::after {
   content: "";
   position: absolute;
   inset: 0;
+  pointer-events: none;
   background: linear-gradient(
     100deg,
     transparent 20%,
@@ -246,20 +370,8 @@ body > * {
   transform: translateX(-120%);
   transition: transform var(--dur-slow) var(--ease-settle);
 }
-.btn:hover:not(:disabled)::after {
+.sheen:hover:not(:disabled)::after {
   transform: translateX(120%);
-}
-
-.btn-ghost {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  color: var(--foreground);
-  box-shadow: var(--hairline);
-}
-.btn-ghost:hover:not(:disabled) {
-  background: var(--surface-3);
-  border-color: var(--border-strong);
-  filter: none;
 }
 
 /* --- Navigation ---------------------------------------------------------- */
@@ -267,7 +379,7 @@ body > * {
 .nav-link {
   position: relative;
   padding-bottom: 2px;
-  color: var(--muted);
+  color: var(--muted-foreground);
   transition: color var(--dur-fast) var(--ease-settle);
 }
 .nav-link:hover {
@@ -280,7 +392,7 @@ body > * {
   right: 0;
   bottom: -2px;
   height: 1.5px;
-  background: var(--accent);
+  background: var(--primary);
   transform: scaleX(0);
   transform-origin: left;
   transition: transform var(--dur) var(--ease-settle);
@@ -368,27 +480,25 @@ body > * {
 .shimmer {
   background: linear-gradient(
     90deg,
-    var(--surface-2) 0%,
-    var(--surface-3) 40%,
-    var(--surface-2) 80%
+    var(--muted) 0%,
+    var(--accent) 40%,
+    var(--muted) 80%
   );
   background-size: 400px 100%;
   animation: shimmer 1.3s linear infinite;
 }
 
-/* One-shot warm flare when an enriched record lands. */
+/* One-shot warm wash when a card lands — a tint that fades, not a glow. */
 @keyframes land {
   0% {
-    box-shadow: 0 0 0 2px var(--accent), 0 0 26px -4px rgba(214, 160, 74, 0.6);
-    border-color: var(--accent);
+    background-color: rgba(138, 163, 99, 0.16);
   }
   100% {
-    box-shadow: var(--hairline), var(--shadow-md);
-    border-color: var(--border);
+    background-color: transparent;
   }
 }
 .landed {
-  animation: land 1.6s var(--ease-settle);
+  animation: land 1.4s var(--ease-settle);
 }
 
 @keyframes pulse-dot {
@@ -444,18 +554,31 @@ body > * {
   animation: wave-bar 0.9s ease-in-out infinite;
 }
 
-/* Breathing halo around the live capture button. */
-@keyframes listening-halo {
+/*
+ * The voice stage's waveform strip. Each bar gets its own duration and delay
+ * inline so the strip never visibly loops; at rest the bars sit low and still.
+ */
+.voice-bar {
+  transform-origin: center;
+  transform: scaleY(0.18);
+  transition: transform var(--dur) var(--ease-settle);
+}
+[data-listening="true"] .voice-bar {
+  animation: wave-bar var(--bar-dur, 0.9s) ease-in-out var(--bar-delay, 0s) infinite;
+}
+
+/* A single soft ring that breathes around the live capture button. */
+@keyframes listening-ring {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(196, 89, 63, 0.45);
+    box-shadow: 0 0 0 0 rgba(196, 89, 63, 0.35);
   }
   50% {
-    box-shadow: 0 0 0 12px rgba(196, 89, 63, 0);
+    box-shadow: 0 0 0 7px rgba(196, 89, 63, 0);
   }
 }
-.listening-halo {
-  animation: listening-halo 1.9s ease-out infinite;
+.listening-ring {
+  animation: listening-ring 2.2s ease-out infinite;
 }
 
 /* --- Accessibility ------------------------------------------------------- */
@@ -468,7 +591,9 @@ body > * {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
-  .card-lift:hover {
+  .card-lift:hover,
+  .press:hover:not(:disabled),
+  .press:active:not(:disabled) {
     transform: none;
   }
 }

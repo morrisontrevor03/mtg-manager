@@ -1,11 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { EmptyState, LoadError, Panel, PageHeader, Skeleton } from "@/components/ui";
+import { Suspense, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { FileTextIcon, LayersIcon, PencilLineIcon } from "lucide-react";
+import { EmptyState, LoadError, PageHeader } from "@/components/patterns";
 import { WaveformIcon } from "@/components/icons";
-import { AddCardForm } from "@/components/collection/AddCardForm";
-import { ImportPanel } from "@/components/collection/ImportPanel";
-import { CollectionTable, type Row } from "@/components/collection/CollectionTable";
+import { AddCardsMenu, type AddMode } from "@/components/collection/AddCards";
+import { CollectionList, type Row } from "@/components/collection/CollectionList";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/useApi";
 import type { CardPrices } from "@/lib/types";
 
@@ -14,14 +17,19 @@ interface ApiItem {
   id: string;
   quantity: number;
   foil: boolean;
+  condition: string;
+  addedAt: string;
   card: {
     name: string;
     setCode: string;
     collectorNumber: string;
     typeLine: string;
     manaCost: string;
+    cmc: number;
+    oracleText: string;
     rarity: string;
     colors: string[];
+    imageUri: string;
     prices: CardPrices;
     scryfallUri: string;
   };
@@ -37,9 +45,11 @@ interface ApiResponse {
 // outgrows it, rather than silently showing a subset.
 const PAGE_SIZE = 500;
 
+const num = (raw?: string | null) => parseFloat(raw ?? "") || 0;
+
 function toRow(it: ApiItem): Row {
   const p = it.card.prices;
-  const raw = it.foil ? p.usd_foil ?? p.usd : p.usd;
+  const prices = { usd: num(p.usd), usdFoil: num(p.usd_foil) };
   return {
     id: it.id,
     name: it.card.name,
@@ -47,19 +57,44 @@ function toRow(it: ApiItem): Row {
     collectorNumber: it.card.collectorNumber,
     typeLine: it.card.typeLine,
     manaCost: it.card.manaCost,
+    cmc: it.card.cmc ?? 0,
+    oracleText: it.card.oracleText ?? "",
     rarity: it.card.rarity,
     colors: it.card.colors ?? [],
     quantity: it.quantity,
     foil: it.foil,
-    priceUsd: parseFloat(raw ?? "") || 0,
+    condition: it.condition,
+    priceUsd: it.foil ? prices.usdFoil || prices.usd : prices.usd,
+    prices,
+    imageUri: it.card.imageUri,
     scryfallUri: it.card.scryfallUri,
+    addedAt: it.addedAt,
   };
 }
 
-export default function CollectionPage() {
+const usd = (n: number) =>
+  n.toLocaleString(undefined, { style: "currency", currency: "USD", minimumFractionDigits: 2 });
+
+function CollectionView() {
   const { data, error, loading, reload } = useApi<ApiResponse>(
     `/api/collection?take=${PAGE_SIZE}`,
   );
+
+  // `?add=voice` (from the dashboard) opens a tool on arrival. The parameter is
+  // dropped once the tool closes, so a refresh does not reopen it.
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [mode, setModeState] = useState<AddMode | null>(() => {
+    const requested = params.get("add");
+    return requested === "voice" || requested === "manual" || requested === "import"
+      ? requested
+      : null;
+  });
+  const setMode = (next: AddMode | null) => {
+    setModeState(next);
+    if (!next && params.has("add")) router.replace(pathname);
+  };
 
   const rows: Row[] = (data?.items ?? []).map(toRow);
   const totalCopies = rows.reduce((n, r) => n + r.quantity, 0);
@@ -70,59 +105,99 @@ export default function CollectionPage() {
     <div className="space-y-8">
       <PageHeader
         title="Collection"
-        lead="Add cards by hand, paste a list, or announce them out loud."
-        actions={
-          <Link href="/collection/voice" className="btn text-sm">
-            <WaveformIcon size={16} />
-            Voice entry
-          </Link>
+        lead={
+          rows.length > 0 ? (
+            <span className="flex flex-wrap items-baseline gap-x-2">
+              <span>
+                <span className="numeral text-foreground">{totalCopies.toLocaleString()}</span>{" "}
+                cards
+              </span>
+              <span aria-hidden className="text-faint-foreground">
+                ·
+              </span>
+              <span>
+                <span className="numeral text-foreground">{rows.length.toLocaleString()}</span>{" "}
+                unique
+              </span>
+              <span aria-hidden className="text-faint-foreground">
+                ·
+              </span>
+              <span className="numeral font-medium text-primary">{usd(totalValue)}</span>
+            </span>
+          ) : undefined
         }
+        actions={<AddCardsMenu mode={mode} onModeChange={setMode} onChanged={reload} />}
       />
-
-      <div className="stagger grid gap-4 lg:grid-cols-2">
-        <Panel title="Add a card" lift>
-          <AddCardForm onChanged={reload} />
-        </Panel>
-        <Panel title="Import a list" lift>
-          <ImportPanel onChanged={reload} />
-        </Panel>
-      </div>
 
       {error ? (
         <LoadError message={error} onRetry={reload} />
       ) : loading && !data ? (
-        <Panel title="Your cards">
-          <Skeleton lines={8} />
-        </Panel>
+        <ListSkeleton />
       ) : rows.length === 0 ? (
-        <EmptyState icon="📥" title="Nothing here yet">
-          Add your first card above, or import{" "}
-          <code className="font-mono">sample-collection.csv</code> to try things out.
-        </EmptyState>
-      ) : (
-        <Panel
-          title="Your cards"
-          actions={
-            <div className="flex items-baseline gap-3 text-xs text-muted">
-              <span>
-                <span className="numeral text-foreground">{rows.length}</span> unique
-              </span>
-              <span>
-                <span className="numeral text-foreground">{totalCopies}</span> copies
-              </span>
-              <span className="numeral text-accent">${totalValue.toFixed(2)}</span>
+        <EmptyState
+          icon={<LayersIcon />}
+          title="No cards yet"
+          action={
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={() => setMode("manual")}>
+                <PencilLineIcon />
+                Add manually
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setMode("import")}>
+                <FileTextIcon />
+                Import list
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setMode("voice")}>
+                <WaveformIcon size={15} />
+                Voice entry
+              </Button>
             </div>
           }
         >
+          Start with the cards in front of you: search one by name, paste a list exported from
+          another app, or read a stack out loud.
+        </EmptyState>
+      ) : (
+        <>
           {truncated && (
-            <p className="mb-3 text-xs text-muted">
+            <p className="text-xs text-muted-foreground">
               Showing the first <span className="numeral">{rows.length}</span> of{" "}
-              <span className="numeral">{data?.total}</span> cards.
+              <span className="numeral">{data?.total}</span> printings.
             </p>
           )}
-          <CollectionTable rows={rows} onChanged={reload} refreshing={loading} />
-        </Panel>
+          <CollectionList rows={rows} onChanged={reload} refreshing={loading} />
+        </>
       )}
     </div>
+  );
+}
+
+function ListSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true">
+      <span className="sr-only">Loading…</span>
+      <div className="flex gap-2">
+        <Skeleton className="h-9 w-72 rounded-sm" />
+        <Skeleton className="h-9 w-56 rounded-md" />
+      </div>
+      <div className="divide-y divide-border/60">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-4 py-2.5">
+            <Skeleton className="h-8 w-11 rounded-[4px]" />
+            <Skeleton className="h-3.5 rounded-full" style={{ width: `${40 - (i % 3) * 7}%` }} />
+            <Skeleton className="ml-auto h-3.5 w-14 rounded-full" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function CollectionPage() {
+  // `useSearchParams` needs a Suspense boundary to prerender during export.
+  return (
+    <Suspense fallback={<ListSkeleton />}>
+      <CollectionView />
+    </Suspense>
   );
 }

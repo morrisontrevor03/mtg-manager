@@ -12,6 +12,7 @@ import {
   GoogleSignIn,
 } from "@/components/auth/AuthForm";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { Button } from "@/components/ui/button";
 import { authErrorMessage, PASSWORD_RULES } from "@/lib/authClient";
 
 function SignupFlow() {
@@ -137,14 +138,14 @@ function SignupFlow() {
           />
           <FormNotice message={notice} />
           <FormError message={error} />
-          <button className="btn w-full" disabled={busy}>
+          <Button type="submit" className="w-full" disabled={busy}>
             {busy ? "Verifying…" : "Verify and continue"}
-          </button>
+          </Button>
           <p className="text-center text-sm">
             <button
               type="button"
               onClick={resend}
-              className="text-muted underline decoration-dotted underline-offset-2 hover:text-foreground"
+              className="text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground"
             >
               Send a new code
             </button>
@@ -190,9 +191,9 @@ function SignupFlow() {
           onChange={(e) => setConfirmPassword(e.target.value)}
         />
         <FormError message={error} />
-        <button className="btn w-full" disabled={busy}>
+        <Button type="submit" className="w-full" disabled={busy}>
           {busy ? "Creating account…" : "Create account"}
-        </button>
+        </Button>
       </form>
     </AuthCard>
   );

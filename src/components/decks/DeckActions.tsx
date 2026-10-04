@@ -2,7 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { CheckIcon, CopyIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { apiFetch } from "@/lib/authClient";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function DeckActions({
   deckId,
@@ -36,7 +50,6 @@ export function DeckActions({
   }
 
   async function remove() {
-    if (!confirm("Delete this deck?")) return;
     setBusy(true);
     await apiFetch(`/api/decks/${deckId}`, { method: "DELETE" });
     router.push("/decks");
@@ -51,40 +64,69 @@ export function DeckActions({
   return (
     <div className="flex flex-wrap items-center gap-2">
       {editing ? (
-        <>
-          <input
-            className="input w-64"
+        <form
+          className="flex items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void patch({ name: draftName });
+          }}
+        >
+          <Input
+            className="w-64"
+            aria-label="Deck name"
+            autoFocus
             value={draftName}
             onChange={(e) => setDraftName(e.target.value)}
           />
-          <button className="btn text-sm" disabled={busy} onClick={() => patch({ name: draftName })}>
+          <Button type="submit" disabled={busy || !draftName.trim()}>
             Save
-          </button>
-          <button className="btn btn-ghost text-sm" onClick={() => setEditing(false)}>
+          </Button>
+          <Button type="button" variant="outline" onClick={() => setEditing(false)}>
             Cancel
-          </button>
-        </>
+          </Button>
+        </form>
       ) : (
-        <button className="btn btn-ghost text-sm" onClick={() => setEditing(true)}>
+        <Button variant="outline" onClick={() => setEditing(true)}>
+          <PencilIcon />
           Rename
-        </button>
+        </Button>
       )}
 
-      <button
-        className="btn btn-ghost text-sm"
+      <Button
+        variant="outline"
         disabled={busy}
         onClick={() => patch({ status: status === "final" ? "draft" : "final" })}
       >
         {status === "final" ? "Mark as draft" : "Mark as final"}
-      </button>
+      </Button>
 
-      <button className="btn btn-ghost text-sm" onClick={copy}>
-        {copied ? "Copied!" : "Copy as text"}
-      </button>
+      <Button variant="outline" onClick={copy}>
+        {copied ? <CheckIcon /> : <CopyIcon />}
+        {copied ? "Copied" : "Copy as text"}
+      </Button>
 
-      <button className="btn btn-ghost text-sm !text-[color:var(--danger)]" disabled={busy} onClick={remove}>
-        Delete
-      </button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button variant="destructive" disabled={busy}>
+            <Trash2Icon />
+            Delete
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              The deck list is removed for good. Cards in your collection are not affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={remove}>
+              Delete deck
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

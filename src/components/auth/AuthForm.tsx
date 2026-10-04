@@ -1,10 +1,15 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { signInWithRedirect } from "aws-amplify/auth";
 import { GoogleIcon } from "@/components/icons";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authErrorMessage } from "@/lib/authClient";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 
 /** The centred card every sign-in page sits in. */
 export function AuthCard({
@@ -22,13 +27,13 @@ export function AuthCard({
 }) {
   return (
     <div className="ink-in mx-auto w-full max-w-sm pt-6">
-      <div className="card p-7">
-        <p className="eyebrow">{eyebrow}</p>
-        <h1 className="display mt-1.5 text-2xl font-semibold">{title}</h1>
-        {lead && <p className="mt-1.5 text-sm text-muted">{lead}</p>}
+      <Card className="gap-0 p-7">
+        <p className="text-sm text-muted-foreground">{eyebrow}</p>
+        <h1 className="display mt-1 text-2xl font-semibold">{title}</h1>
+        {lead && <p className="mt-1.5 text-sm text-muted-foreground">{lead}</p>}
         <div className="mt-6">{children}</div>
-      </div>
-      {footer && <div className="mt-4 text-center text-sm text-muted">{footer}</div>}
+      </Card>
+      {footer && <div className="mt-4 text-center text-sm text-muted-foreground">{footer}</div>}
     </div>
   );
 }
@@ -38,20 +43,27 @@ export function Field({
   label,
   hint,
   ...input
-}: { label: string; hint?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
+}: { label: string; hint?: string } & React.ComponentProps<typeof Input>) {
+  const id = useId();
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm text-muted">{label}</span>
-      <input className="input" {...input} />
-      {hint && <span className="mt-1 block text-xs text-muted-dim">{hint}</span>}
-    </label>
+    <div className="grid gap-1.5">
+      <Label htmlFor={id} className="font-normal text-muted-foreground">
+        {label}
+      </Label>
+      <Input id={id} aria-describedby={hint ? `${id}-hint` : undefined} {...input} />
+      {hint && (
+        <p id={`${id}-hint`} className="text-xs text-faint-foreground">
+          {hint}
+        </p>
+      )}
+    </div>
   );
 }
 
 export function FormError({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p role="alert" className="text-sm text-[color:var(--danger)]">
+    <p role="alert" className="text-sm text-destructive">
       {message}
     </p>
   );
@@ -60,7 +72,7 @@ export function FormError({ message }: { message: string | null }) {
 export function FormNotice({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <p role="status" className="text-sm text-[color:var(--success)]">
+    <p role="status" className="text-sm text-success">
       {message}
     </p>
   );
@@ -78,9 +90,10 @@ export function GoogleSignIn({ onError }: { onError: (message: string) => void }
 
   return (
     <>
-      <button
+      <Button
         type="button"
-        className="btn btn-ghost w-full"
+        variant="outline"
+        className="w-full"
         disabled={busy}
         onClick={async () => {
           setBusy(true);
@@ -95,11 +108,11 @@ export function GoogleSignIn({ onError }: { onError: (message: string) => void }
       >
         <GoogleIcon />
         {busy ? "Redirecting…" : "Continue with Google"}
-      </button>
-      <div className="my-5 flex items-center gap-3 text-xs text-muted-dim" aria-hidden>
-        <span className="h-px flex-1 bg-border" />
+      </Button>
+      <div className="my-5 flex items-center gap-3 text-xs text-faint-foreground" aria-hidden>
+        <Separator className="flex-1" />
         or with email
-        <span className="h-px flex-1 bg-border" />
+        <Separator className="flex-1" />
       </div>
     </>
   );

@@ -1,25 +1,17 @@
-import Link from "next/link";
-import { VoiceEntry } from "@/components/collection/VoiceEntry";
-import { PageHeader } from "@/components/ui";
+"use client";
 
-export const metadata = {
-  title: "Voice entry · MTG Manager",
-};
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { SkeletonLines } from "@/components/patterns";
 
-export default function VoiceEntryPage() {
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Voice entry"
-        lead="Announce each card. It gets matched, enriched from Scryfall, and added to your collection — hands free."
-        actions={
-          <Link href="/collection" className="text-sm text-muted hover:text-foreground">
-            ← Collection
-          </Link>
-        }
-      />
-
-      <VoiceEntry />
-    </div>
-  );
+/**
+ * Voice entry is now a dialog on the Collection page. This route stays so old
+ * links and bookmarks land in the same place.
+ */
+export default function VoiceEntryRedirect() {
+  const router = useRouter();
+  useEffect(() => {
+    router.replace("/collection?add=voice");
+  }, [router]);
+  return <SkeletonLines lines={4} />;
 }

@@ -5,7 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Hub } from "aws-amplify/utils";
 import { fetchUserAttributes, getCurrentUser, signOut as amplifySignOut } from "aws-amplify/auth";
 import { loadAuthConfig, UNAUTHORIZED_EVENT, type AuthConfig } from "@/lib/authClient";
-import { LoadError, Skeleton } from "@/components/ui";
+import { LoadError, SkeletonLines } from "@/components/patterns";
 
 type Status = "loading" | "signedIn" | "signedOut" | "error";
 
@@ -118,6 +118,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (open) return <>{children}</>;
   if (status === "error") return <LoadError message={error ?? "Sign-in is unavailable."} />;
-  if (status !== "signedIn") return <Skeleton lines={4} />;
+  if (status !== "signedIn") return <SkeletonLines lines={4} />;
   return <>{children}</>;
 }

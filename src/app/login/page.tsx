@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "aws-amplify/auth";
 import { AuthCard, Field, FormError, GoogleSignIn } from "@/components/auth/AuthForm";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { Button } from "@/components/ui/button";
 import { authErrorMessage, safeNext } from "@/lib/authClient";
 
 function LoginForm() {
@@ -81,13 +82,13 @@ function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
         />
         <FormError message={error} />
-        <button className="btn w-full" disabled={busy}>
+        <Button type="submit" className="w-full" disabled={busy}>
           {busy ? "Signing in…" : "Sign in"}
-        </button>
+        </Button>
         <p className="text-center text-sm">
           <Link
             href={`/forgot-password${email ? `?email=${encodeURIComponent(email.trim())}` : ""}`}
-            className="text-muted underline decoration-dotted underline-offset-2 hover:text-foreground"
+            className="text-muted-foreground underline decoration-dotted underline-offset-2 hover:text-foreground"
           >
             Forgot your password?
           </Link>

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { NavLink } from "@/components/NavLink";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { Button } from "@/components/ui/button";
 
 const NAV = [
   { href: "/", label: "Dashboard" },
@@ -19,27 +20,28 @@ export function AppNav() {
 
   return (
     <>
-      <nav className="flex gap-5">
+      <nav className="order-last flex w-full gap-5 sm:order-none sm:w-auto">
         {NAV.map((n) => (
           <NavLink key={n.href} {...n} />
         ))}
       </nav>
       <div className="ml-auto flex items-center gap-3">
         {email && (
-          <span className="hidden max-w-[16rem] truncate text-xs text-muted sm:inline" title={email}>
+          <span className="hidden max-w-[16rem] truncate text-xs text-muted-foreground sm:inline" title={email}>
             {email}
           </span>
         )}
-        <button
+        <Button
           type="button"
-          className="btn btn-ghost px-3 py-1 text-sm"
+          variant="outline"
+          size="sm"
           onClick={async () => {
             await signOut();
             router.replace("/login");
           }}
         >
           Sign out
-        </button>
+        </Button>
       </div>
     </>
   );

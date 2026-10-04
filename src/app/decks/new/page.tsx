@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { DeckBuilderForm } from "@/components/decks/DeckBuilderForm";
-import { LoadError, PageHeader, Panel, Skeleton } from "@/components/ui";
+import { BackLink, LoadError, PageHeader, SkeletonLines, Surface } from "@/components/patterns";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useApi } from "@/lib/useApi";
 import type { Color } from "@/lib/types";
 
@@ -20,20 +20,18 @@ export default function NewDeckPage() {
     <div className="space-y-8">
       <PageHeader
         title="Build a deck"
-        lead="Say what you want the deck to do. It gets built from your collection and checked against format rules."
+        lead="Describe how the deck should play. It is built from cards you own and checked against format rules."
         actions={
-          <Link href="/decks" className="text-sm text-muted hover:text-foreground">
-            ← All decks
-          </Link>
+          <BackLink href="/decks">All decks</BackLink>
         }
       />
 
       {error ? (
         <LoadError message={error} onRetry={reload} />
       ) : loading || !data ? (
-        <Panel>
-          <Skeleton lines={5} />
-        </Panel>
+        <Surface className="max-w-2xl p-5">
+          <SkeletonLines lines={5} />
+        </Surface>
       ) : (
         <>
           {/*
@@ -43,16 +41,19 @@ export default function NewDeckPage() {
             whether a key exists.
           */}
           {!data.deckBuilderEnabled && (
-            <Panel>
-              <p className="text-accent">
-                The deck builder is switched off in this deployment. Locally, set{" "}
-                <code className="font-mono">ANTHROPIC_API_KEY</code> in{" "}
-                <code className="font-mono">.env</code> and restart the dev server. On AWS, set{" "}
-                <code className="font-mono">enable_deck_builder = true</code> in your Terraform
-                variables — see <code className="font-mono">infra/README.md</code> for why it ships
-                disabled.
-              </p>
-            </Panel>
+            <Alert variant="warning">
+              <AlertTitle>The deck builder is switched off in this deployment</AlertTitle>
+              <AlertDescription>
+                <p>
+                  Locally, set{" "}
+                  <code className="font-mono">ANTHROPIC_API_KEY</code> in{" "}
+                  <code className="font-mono">.env</code> and restart the dev server. On AWS, set{" "}
+                  <code className="font-mono">enable_deck_builder = true</code> in your Terraform
+                  variables — see <code className="font-mono">infra/README.md</code> for why it ships
+                  disabled.
+                </p>
+              </AlertDescription>
+            </Alert>
           )}
 
           <DeckBuilderForm
