@@ -67,7 +67,14 @@ export function Surface({ children, className }: { children: ReactNode; classNam
 /** A row of headline figures separated by hairlines, not boxed. */
 export function StatRow({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <dl className={cn("grid grid-cols-2 gap-y-5 sm:flex sm:flex-wrap sm:gap-y-4", className)}>
+    // Equal columns across the full width, so the row spans the page however
+    // many figures it holds; two per line on phones.
+    <dl
+      className={cn(
+        "grid grid-cols-2 gap-y-5 sm:auto-cols-fr sm:grid-flow-col sm:grid-cols-none",
+        className,
+      )}
+    >
       {children}
     </dl>
   );

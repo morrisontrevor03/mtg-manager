@@ -79,8 +79,8 @@ are `shadow-hairline`, `shadow-raised` and `shadow-raised-lg`, all warm-tinted.
 
 ## Type and motion
 
-- `.display` (Fraunces) is for the brand, page titles, and the title of a card or voice
-  dialog. Nothing else: stats, section headings, tables and labels are Geist Sans.
+- `.display` (Fraunces) is for the brand, page titles, and the card detail drawer's
+  title. Nothing else: stats, section headings, tables and labels are Geist Sans.
 - Section headings are **sentence case** ("Mana curve", "Recently added") via `Section`.
   Uppercase is for collector metadata only: `.meta` (mono small caps for set codes and
   collector numbers) and `FoilMark`. `.eyebrow` still exists but should be rare.

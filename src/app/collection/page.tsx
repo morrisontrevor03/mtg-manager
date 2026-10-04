@@ -7,6 +7,7 @@ import { EmptyState, LoadError, PageHeader } from "@/components/patterns";
 import { WaveformIcon } from "@/components/icons";
 import { AddCardsMenu, type AddMode } from "@/components/collection/AddCards";
 import { CollectionList, type Row } from "@/components/collection/CollectionList";
+import { VoiceEntry } from "@/components/collection/VoiceEntry";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/useApi";
@@ -128,6 +129,8 @@ function CollectionView() {
         }
         actions={<AddCardsMenu mode={mode} onModeChange={setMode} onChanged={reload} />}
       />
+
+      {mode === "voice" && <VoiceEntry onDone={() => setMode(null)} onChanged={reload} />}
 
       {error ? (
         <LoadError message={error} onRetry={reload} />

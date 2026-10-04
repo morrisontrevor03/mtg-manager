@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LayersIcon } from "lucide-react";
+import { LayersIcon, PlusIcon } from "lucide-react";
 import { BarList, ColourBreakdown, ManaCurve, RarityBreakdown } from "@/components/charts";
 import {
   ActionLink,
@@ -15,7 +15,7 @@ import {
   Surface,
 } from "@/components/patterns";
 import { CardPreview, CardThumb, FoilMark, ManaCost, Printing, SetSymbol } from "@/components/mtg";
-import { SparkIcon, WaveformIcon } from "@/components/icons";
+import { SparkIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApi } from "@/lib/useApi";
@@ -36,9 +36,9 @@ export default function DashboardPage() {
         actions={
           <>
             <Button asChild variant="outline">
-              <Link href="/collection?add=voice">
-                <WaveformIcon size={16} />
-                Voice entry
+              <Link href="/collection?add=manual">
+                <PlusIcon />
+                Add cards
               </Link>
             </Button>
             <Button asChild>

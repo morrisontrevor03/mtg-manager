@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { cn } from "cn";
-import { AlertTriangleIcon, CheckIcon, LoaderCircleIcon, MicOffIcon } from "lucide-react";
+import { AlertTriangleIcon, CheckIcon, LoaderCircleIcon, MicOffIcon, XIcon } from "lucide-react";
 import { CardThumb, FoilMark, Printing } from "@/components/mtg";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,12 +68,25 @@ let seq = 0;
 const nextId = () => `e${++seq}`;
 
 /**
- * Hands-free card entry. Rendered as the body of the voice dialog on the
+ * Hands-free card entry, shown as a control row above the card list on the
  * Collection page; `onDone` closes it. Each spoken phrase becomes one entry
  * that is matched, enriched from Scryfall and added while the mic stays live.
+ * `onChanged` fires after every add or undo, so the list below stays current.
  */
-export function VoiceEntry({ onDone }: { onDone?: () => void }) {
+export function VoiceEntry({
+  onDone,
+  onChanged,
+}: {
+  onDone?: () => void;
+  onChanged?: () => void;
+}) {
   const [entries, setEntries] = useState<Entry[]>([]);
+
+  // Read from async callbacks, so held in a ref rather than re-binding them.
+  const onChangedRef = useRef(onChanged);
+  useEffect(() => {
+    onChangedRef.current = onChanged;
+  });
 
   // Voice commands arrive from async recogniser events and need the current
   // list without re-binding the recognizer, so it is mirrored into a ref.
@@ -149,6 +162,7 @@ export function VoiceEntry({ onDone }: { onDone?: () => void }) {
           quantityAfter: data.quantity,
           matchedName: data.name,
         });
+        onChangedRef.current?.();
       } catch (err) {
         beep("failed");
         update(id, {
@@ -171,6 +185,7 @@ export function VoiceEntry({ onDone }: { onDone?: () => void }) {
         body: JSON.stringify({ quantity: Math.max(0, remaining) }),
       });
       remove(entry.id);
+      onChangedRef.current?.();
     },
     [remove],
   );
@@ -281,132 +296,124 @@ export function VoiceEntry({ onDone }: { onDone?: () => void }) {
       (e.status === "confirming" || e.status === "unresolved" || e.status === "error"),
   ).length;
 
+  const close = onDone
+    ? () => {
+        stop();
+        onDone();
+      }
+    : undefined;
+
+  const closeButton = close && (
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      onClick={close}
+      aria-label="Close voice entry"
+      className="shrink-0"
+    >
+      <XIcon />
+    </Button>
+  );
 
   if (support === "unsupported") {
     return (
-      <div className="flex gap-3 rounded-lg bg-muted/60 p-4 text-sm">
-        <MicOffIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-        <div>
-          <p className="font-medium">This browser can&rsquo;t do speech recognition</p>
-          <p className="mt-1 text-muted-foreground">
-            Voice entry works in Chrome, Edge and Safari. Here, use Add manually or Import list
-            instead.
-          </p>
-        </div>
+      <div className="paper flex items-center gap-3 rounded-xl px-4 py-3 text-sm shadow-raised">
+        <MicOffIcon aria-hidden className="size-4 shrink-0 text-muted-foreground" />
+        <p className="min-w-0 flex-1">
+          <span className="font-medium">Voice entry isn&rsquo;t available in this browser.</span>{" "}
+          <span className="text-muted-foreground">
+            It works in Chrome, Edge and Safari; use Add manually or Import list here.
+          </span>
+        </p>
+        {closeButton}
       </div>
     );
   }
 
   return (
-    <div className="space-y-5" data-listening={listening}>
-      {/* Stage: the control, the waveform, and what is being heard right now. */}
-      <div className="rounded-lg bg-background/70 px-4 py-4 ring-1 ring-border/70 sm:px-5">
-        <div className="flex items-center gap-4">
-          <Button
-            onClick={toggle}
-            variant={listening ? "destructive" : "default"}
-            className={cn("size-12 shrink-0 rounded-full", listening && "listening-ring")}
-            aria-label={listening ? "Stop listening" : "Start listening"}
-          >
-            {listening ? <StopIcon className="size-4" /> : <WaveformIcon className="size-5" />}
-          </Button>
+    <section
+      aria-label="Voice entry"
+      data-listening={listening}
+      className="paper ink-in overflow-hidden rounded-xl shadow-raised"
+    >
+      {/* The control row: mic, waveform, what is being heard, running totals. */}
+      <div className="flex items-center gap-3 px-3 py-2.5 sm:gap-4 sm:px-4">
+        <Button
+          onClick={toggle}
+          variant={listening ? "destructive" : "default"}
+          className={cn("size-10 shrink-0 rounded-full", listening && "listening-ring")}
+          aria-label={listening ? "Stop listening" : "Start listening"}
+        >
+          {listening ? <StopIcon className="size-3.5" /> : <WaveformIcon className="size-[18px]" />}
+        </Button>
 
-          <Waveform className={listening ? "text-foreground/75" : "text-muted-foreground/35"} />
-
-          <span
-            className={cn(
-              "flex shrink-0 items-center gap-1.5 text-xs",
-              listening ? "text-foreground" : "text-muted-foreground",
-            )}
-          >
-            <span
-              aria-hidden
-              className={cn(
-                "size-1.5 rounded-full",
-                listening ? "pulse-dot bg-destructive" : "bg-faint-foreground",
-              )}
-            />
-            {listening ? "Listening" : "Paused"}
-          </span>
-        </div>
+        <Waveform
+          className={cn(
+            "hidden sm:flex",
+            listening ? "text-foreground/75" : "text-muted-foreground/35",
+          )}
+        />
 
         <p
           aria-live="polite"
           className={cn(
-            "mt-3 min-h-7 truncate text-lg",
-            interim ? "text-foreground italic" : "text-faint-foreground",
+            "min-w-0 flex-1 truncate text-sm",
+            interim ? "text-foreground italic" : "text-muted-foreground",
           )}
         >
           {interim
             ? `“${interim}”`
             : listening
-              ? "Say a card name, then pause…"
-              : "Press the button and read your cards out, one at a time."}
+              ? "Listening — say a card name, then pause"
+              : "Voice entry — press the button and read your cards out"}
         </p>
 
-        {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
-      </div>
-
-      {/* What was heard, newest first. */}
-      <div>
-        <div className="mb-1.5 flex items-baseline gap-3">
-          <h3 className="text-sm font-medium">Detected cards</h3>
+        <span className="hidden shrink-0 items-baseline gap-3 text-xs text-muted-foreground md:flex">
           {added.length > 0 && (
-            <span className="text-xs text-muted-foreground">
-              <span className="numeral">{added.length}</span> added ·{" "}
-              <span className="numeral">{copies}</span> {copies === 1 ? "copy" : "copies"}
+            <span>
+              <span className="numeral text-foreground">{added.length}</span> added ·{" "}
+              <span className="numeral text-foreground">{copies}</span>{" "}
+              {copies === 1 ? "copy" : "copies"}
             </span>
           )}
           {needsAttention > 0 && (
-            <span className="text-xs text-primary">
+            <span className="text-primary">
               <span className="numeral">{needsAttention}</span> to review
             </span>
           )}
-        </div>
+        </span>
 
-        {entries.length === 0 ? (
-          <p className="border-t border-border py-6 text-sm text-faint-foreground">
-            Nothing yet. Try <em className="text-muted-foreground">&ldquo;four Lightning Bolt&rdquo;</em>{" "}
-            or <em className="text-muted-foreground">&ldquo;foil Sol Ring&rdquo;</em>.
-          </p>
-        ) : (
-          <ul className="max-h-[42vh] divide-y divide-border/70 overflow-y-auto border-t border-border">
-            {entries.map((entry) => (
-              <li key={entry.id} className={entry.dismissing ? "settle-out" : undefined}>
-                <EntryRow
-                  entry={entry}
-                  onPick={(c) => resolveCandidate(entry, c)}
-                  onSkip={() => update(entry.id, { status: "unresolved", candidates: undefined })}
-                  onUndo={() => void undoEntry(entry)}
-                  onRetry={(name) => void enrich(entry.id, name, entry.quantity, entry.foil)}
-                  onDismiss={() => dismiss(entry.id)}
-                  onEditingChange={(editing) => update(entry.id, { editing })}
-                />
-              </li>
-            ))}
-          </ul>
-        )}
+        {closeButton}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 border-t border-border pt-4">
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Say <Kbd>one</Kbd> <Kbd>two</Kbd> <Kbd>three</Kbd> to pick a suggestion,{" "}
-          <Kbd>undo</Kbd> to take back the last card, <Kbd>stop</Kbd> to finish.
-        </p>
-        {onDone && (
-          <Button
-            variant="outline"
-            className="ml-auto"
-            onClick={() => {
-              stop();
-              onDone();
-            }}
-          >
-            Done
-          </Button>
-        )}
-      </div>
-    </div>
+      {error && <p className="border-t border-border px-4 py-2 text-sm text-destructive">{error}</p>}
+
+      {/* What was heard, newest first. */}
+      {entries.length > 0 && (
+        <ul className="max-h-72 divide-y divide-border/70 overflow-y-auto border-t border-border px-3 sm:px-4">
+          {entries.map((entry) => (
+            <li key={entry.id} className={entry.dismissing ? "settle-out" : undefined}>
+              <EntryRow
+                entry={entry}
+                onPick={(c) => resolveCandidate(entry, c)}
+                onSkip={() => update(entry.id, { status: "unresolved", candidates: undefined })}
+                onUndo={() => void undoEntry(entry)}
+                onRetry={(name) => void enrich(entry.id, name, entry.quantity, entry.foil)}
+                onDismiss={() => dismiss(entry.id)}
+                onEditingChange={(editing) => update(entry.id, { editing })}
+              />
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <p className="border-t border-border/70 px-4 py-2 text-xs leading-relaxed text-faint-foreground">
+        Try <em className="text-muted-foreground">&ldquo;four Lightning Bolt&rdquo;</em> or{" "}
+        <em className="text-muted-foreground">&ldquo;foil Sol Ring&rdquo;</em>. Say <Kbd>one</Kbd>{" "}
+        <Kbd>two</Kbd> <Kbd>three</Kbd> to pick a suggestion, <Kbd>undo</Kbd> to take back the
+        last card, <Kbd>stop</Kbd> to pause.
+      </p>
+    </section>
   );
 }
 
@@ -431,12 +438,12 @@ function Waveform({ className }: { className?: string }) {
   return (
     <div
       aria-hidden
-      className={cn("flex h-10 min-w-0 flex-1 items-center gap-[3px] transition-colors", className)}
+      className={cn("h-8 shrink-0 items-center gap-[3px] transition-colors", className)}
     >
-      {BARS.map((b, i) => (
+      {BARS.slice(8, 30).map((b, i) => (
         <span
           key={i}
-          className="voice-bar w-[3px] shrink-0 rounded-full bg-current max-sm:[&:nth-child(n+25)]:hidden"
+          className="voice-bar w-[3px] shrink-0 rounded-full bg-current"
           style={
             {
               height: `${b.height}%`,

@@ -3,7 +3,6 @@
 import { FileTextIcon, PencilLineIcon, PlusIcon } from "lucide-react";
 import { AddCardForm } from "@/components/collection/AddCardForm";
 import { ImportPanel } from "@/components/collection/ImportPanel";
-import { VoiceEntry } from "@/components/collection/VoiceEntry";
 import { WaveformIcon } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +24,9 @@ export type AddMode = "manual" | "import" | "voice";
 
 /**
  * The one way into data entry on the Collection page. Entry tools live behind
- * this menu so the page itself stays about the cards.
+ * this menu so the page itself stays about the cards. Manual and import open
+ * dialogs; voice is a row the page shows above the card list, so cards can be
+ * seen landing in the collection as they are read out.
  *
  * `mode` is controlled by the page so other places (the dashboard's Voice
  * entry button, the empty state) can open a specific tool.
@@ -90,31 +91,6 @@ export function AddCardsMenu({
             </DialogDescription>
           </DialogHeader>
           <ImportPanel onChanged={onChanged} />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={mode === "voice"}
-        onOpenChange={(o) => {
-          if (!o) {
-            close();
-            onChanged();
-          }
-        }}
-      >
-        <DialogContent className="gap-5 sm:max-w-2xl" onInteractOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle className="display text-2xl font-semibold">Voice entry</DialogTitle>
-            <DialogDescription>
-              Read each card out and pause. Quantities and &ldquo;foil&rdquo; are understood.
-            </DialogDescription>
-          </DialogHeader>
-          <VoiceEntry
-            onDone={() => {
-              close();
-              onChanged();
-            }}
-          />
         </DialogContent>
       </Dialog>
     </>

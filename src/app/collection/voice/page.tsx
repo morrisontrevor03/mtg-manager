@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { SkeletonLines } from "@/components/patterns";
 
 /**
- * Voice entry is now a dialog on the Collection page. This route stays so old
+ * Voice entry is now a row above the card list on the Collection page. This route stays so old
  * links and bookmarks land in the same place.
  */
 export default function VoiceEntryRedirect() {
