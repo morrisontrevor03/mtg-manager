@@ -4,6 +4,7 @@ import { validateDeck, type RuleCard } from "@/lib/deckRules";
 import { getFormatLegalOwnedCards } from "@/lib/collection";
 import { fetchCollection, resolveByName, upsertCard } from "@/lib/scryfall";
 import type { Color, Format, Legalities } from "@/lib/types";
+import type { Archetype } from "@/lib/deckParams";
 import type { Card } from "@prisma/client";
 
 export interface BuildDeckResult {
@@ -20,6 +21,9 @@ export interface BuildDeckOptions {
   format: Format;
   prompt: string;
   commanderName?: string;
+  /** Colours the deck must stay within; ignored when a commander is named. */
+  colors?: Color[];
+  archetype?: Archetype;
   allowAcquire: boolean;
   budgetUsd?: number;
 }
@@ -99,20 +103,27 @@ export async function buildAndSaveDeck(opts: BuildDeckOptions): Promise<BuildDec
   }
 
   const commanderIdentity = (commanderCard?.colorIdentity as Color[] | undefined) ?? undefined;
+  // A named commander fixes the colours; otherwise honour any the player picked.
+  const requestedColors = commanderIdentity ? [] : (opts.colors ?? []);
+  const poolIdentity = commanderIdentity ?? (requestedColors.length ? requestedColors : undefined);
   let pool = ownedLegal;
-  if (commanderIdentity) {
-    pool = ownedLegal.filter((c) => withinIdentity(c.colorIdentity, commanderIdentity));
+  if (poolIdentity) {
+    pool = ownedLegal.filter((c) => withinIdentity(c.colorIdentity, poolIdentity));
   }
 
-  // --- LLM draft, with one validation-driven retry --------------------
-  let draft = await buildDeckDraft({
+  const draftInput = {
     format: opts.format,
     prompt: opts.prompt,
     ownedCards: pool,
     commanderName: opts.commanderName,
+    colors: requestedColors,
+    archetype: opts.archetype,
     allowAcquire: opts.allowAcquire,
     budgetUsd: opts.budgetUsd,
-  });
+  };
+
+  // --- LLM draft, with one validation-driven retry --------------------
+  let draft = await buildDeckDraft(draftInput);
 
   let resolved = await resolveCards(draft.cards.map((c) => c.name));
   let ruleCards = draft.cards
@@ -121,7 +132,7 @@ export async function buildAndSaveDeck(opts: BuildDeckOptions): Promise<BuildDec
       return card ? toRuleCard(dc, card) : null;
     })
     .filter((x): x is RuleCard => x !== null);
-  let validation = validateDeck(opts.format, ruleCards);
+  let validation = validateDeck(opts.format, ruleCards, { colors: requestedColors });
 
   if (!validation.ok || resolved.unresolved.length) {
     const feedback = [
@@ -129,12 +140,7 @@ export async function buildAndSaveDeck(opts: BuildDeckOptions): Promise<BuildDec
       ...resolved.unresolved.map((n) => `"${n}" is not a real card — replace it.`),
     ];
     draft = await buildDeckDraft({
-      format: opts.format,
-      prompt: opts.prompt,
-      ownedCards: pool,
-      commanderName: opts.commanderName,
-      allowAcquire: opts.allowAcquire,
-      budgetUsd: opts.budgetUsd,
+      ...draftInput,
       retryViolations: feedback,
       previousDraft: draft,
     });
@@ -145,7 +151,7 @@ export async function buildAndSaveDeck(opts: BuildDeckOptions): Promise<BuildDec
         return card ? toRuleCard(dc, card) : null;
       })
       .filter((x): x is RuleCard => x !== null);
-    validation = validateDeck(opts.format, ruleCards);
+    validation = validateDeck(opts.format, ruleCards, { colors: requestedColors });
   }
 
   // --- Reconcile ownership against the real collection ---------------

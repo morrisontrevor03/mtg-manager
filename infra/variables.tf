@@ -161,12 +161,18 @@ variable "log_retention_days" {
 
 variable "enable_deck_builder" {
   description = <<-EOT
-    Enable the POST /api/decks/build LLM route. Off by default: the route is
-    declared maxDuration = 300 in the app and cannot complete within API
-    Gateway's 29-second ceiling. While disabled the route returns 503.
+    Enable the LLM deck builder routes (POST /api/decks/build and
+    GET /api/decks/build/{id}). Builds run as async jobs on the deck-worker
+    Lambda, so they are not bound by API Gateway's 29-second ceiling. While
+    disabled both routes return 503. Requires anthropic_api_key.
   EOT
   type        = bool
   default     = false
+
+  validation {
+    condition     = !var.enable_deck_builder || var.anthropic_api_key != ""
+    error_message = "enable_deck_builder needs anthropic_api_key to be set."
+  }
 }
 
 variable "anthropic_api_key" {
@@ -174,6 +180,23 @@ variable "anthropic_api_key" {
   type        = string
   default     = ""
   sensitive   = true
+}
+
+variable "deck_worker_timeout_seconds" {
+  description = <<-EOT
+    Timeout for the deck-builder worker. A build is up to two model calls plus
+    Scryfall lookups; most finish in one to three minutes.
+
+    Capped at 690 because the app treats a job still unfinished after 12 minutes
+    as dead (STALE_AFTER_MS in src/lib/deckBuildJobs.ts). Raise both together.
+  EOT
+  type        = number
+  default     = 600
+
+  validation {
+    condition     = var.deck_worker_timeout_seconds >= 60 && var.deck_worker_timeout_seconds <= 690
+    error_message = "deck_worker_timeout_seconds must be between 60 and 690."
+  }
 }
 
 variable "scryfall_user_agent" {

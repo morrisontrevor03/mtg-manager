@@ -48,8 +48,8 @@ lambda_reserved_concurrency = -1
 
 # --- LLM deck builder -----------------------------------------------------
 
-# Off by default: POST /api/decks/build is declared maxDuration = 300 and cannot
-# finish inside API Gateway's hard 29-second ceiling. Enabling it without
-# rebuilding the route as an async job will return 504 on any slow build.
+# Builds run as async jobs on the deck-worker Lambda, so API Gateway's 29-second
+# ceiling no longer applies. Off until you want to pay for model calls; turning
+# it on also requires anthropic_api_key.
 enable_deck_builder = false
 # anthropic_api_key = "sk-ant-..."

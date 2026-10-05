@@ -53,8 +53,28 @@ function withinIdentity(identity: Color[], commander: Color[]): boolean {
   return identity.every((c) => allowed.has(c));
 }
 
-export function validateDeck(format: Format, cards: RuleCard[]): ValidationResult {
-  return format === "commander" ? validateCommander(cards) : validateStandard(cards);
+export interface ValidateOptions {
+  /**
+   * Colours the player asked for. Every card's colour identity must fall
+   * within them. Omit (or pass an empty list) for no restriction.
+   */
+  colors?: Color[];
+}
+
+export function validateDeck(
+  format: Format,
+  cards: RuleCard[],
+  opts: ValidateOptions = {},
+): ValidationResult {
+  const base = format === "commander" ? validateCommander(cards) : validateStandard(cards);
+  if (!opts.colors?.length) return base;
+
+  const allowed = opts.colors;
+  const offColor = cards
+    .filter((c) => !withinIdentity(c.colorIdentity, allowed))
+    .map((c) => `${c.name} falls outside the requested colours (${allowed.join("")}).`);
+  const violations = dedupe([...base.violations, ...offColor]);
+  return { ok: violations.length === 0, violations };
 }
 
 function validateStandard(cards: RuleCard[]): ValidationResult {

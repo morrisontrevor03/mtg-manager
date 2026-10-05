@@ -104,6 +104,31 @@ model Deck {
   @@index([format])
 }
 
+/// One request to the LLM deck builder.
+///
+/// A build takes longer than API Gateway's 29-second ceiling, so the request
+/// only records the job and returns its id; a worker does the build and the
+/// page polls this row. See src/lib/deckBuildJobs.ts.
+model DeckBuildJob {
+  id         String    @id @default(cuid())
+  /// Cognito `sub` of the requester.
+  userId     String
+  status     String    @default("queued") // "queued" | "running" | "succeeded" | "failed"
+  /// The validated build parameters (BuildParams in deckBuildJobs.ts).
+  params     Json
+  /// Set on success. Not a relation: deleting the deck must not touch the job.
+  deckId     String?
+  /// Rule violations, unresolved names and shortfalls from a successful build.
+  warnings   Json      @default("[]")
+  error      String    @default("")
+  startedAt  DateTime?
+  finishedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId, createdAt])
+}
+
 /// A card slot inside a deck.
 model DeckCard {
   id       String  @id @default(cuid())

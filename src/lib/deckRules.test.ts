@@ -145,3 +145,47 @@ describe("validateDeck — commander", () => {
     expect(res.violations.join(" ")).toMatch(/cannot be a commander/);
   });
 });
+
+describe("validateDeck — requested colours", () => {
+  const redDeck = [
+    basics("Mountain", 28, ["R"]),
+    ...["A", "B", "C", "D", "E", "F", "G", "H"].map((n) =>
+      card({ name: `Red ${n}`, quantity: 4, colorIdentity: ["R"] }),
+    ),
+  ];
+
+  it("accepts a deck inside the requested colours", () => {
+    expect(validateDeck("standard", redDeck, { colors: ["R", "G"] })).toEqual({
+      ok: true,
+      violations: [],
+    });
+  });
+
+  it("flags a card outside the requested colours", () => {
+    const res = validateDeck(
+      "standard",
+      [...redDeck.slice(0, -1), card({ name: "Opt", quantity: 4, colorIdentity: ["U"] })],
+      { colors: ["R"] },
+    );
+    expect(res.ok).toBe(false);
+    expect(res.violations).toEqual(["Opt falls outside the requested colours (R)."]);
+  });
+
+  it("treats colourless cards as fitting any colours", () => {
+    const res = validateDeck(
+      "standard",
+      [...redDeck.slice(0, -1), card({ name: "Some Artifact", quantity: 4 })],
+      { colors: ["R"] },
+    );
+    expect(res.ok).toBe(true);
+  });
+
+  it("applies no restriction for an empty list", () => {
+    const res = validateDeck(
+      "standard",
+      [...redDeck.slice(0, -1), card({ name: "Opt", quantity: 4, colorIdentity: ["U"] })],
+      { colors: [] },
+    );
+    expect(res.ok).toBe(true);
+  });
+});

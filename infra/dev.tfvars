@@ -28,5 +28,7 @@ lambda_reserved_concurrency = -1
 # GOOGLE_CLIENT_SECRET GitHub secret (TF_VAR_google_client_secret).
 google_client_id = "377594108583-f4uaqoufcmfvo9rdj6cgm03ppc2ib168.apps.googleusercontent.com"
 
-# Off on purpose until the async rebuild; see infra/README.md.
-enable_deck_builder = false
+# Builds run as async jobs on the deck-worker Lambda. Requires the
+# ANTHROPIC_API_KEY GitHub secret (TF_VAR_anthropic_api_key), or the plan fails
+# validation.
+enable_deck_builder = true

@@ -1,8 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { zodOutputFormat } from "@anthropic-ai/sdk/helpers/zod";
 import { z } from "zod";
-import type { Format } from "@/lib/types";
-import type { OwnedCard } from "@/lib/types";
+import { COLOR_NAMES, type Color, type Format, type OwnedCard } from "@/lib/types";
+import { archetypeBrief, type Archetype } from "@/lib/deckParams";
 
 export const DECK_BUILDER_MODEL = "claude-opus-5";
 
@@ -31,6 +31,9 @@ export interface BuildDeckInput {
   prompt: string;
   ownedCards: OwnedCard[];
   commanderName?: string;
+  /** Colours the deck must stay within. Empty or absent: the model chooses. */
+  colors?: Color[];
+  archetype?: Archetype;
   allowAcquire: boolean;
   budgetUsd?: number;
   /** Violations from a previous validation pass, to drive a single retry. */
@@ -108,9 +111,21 @@ function buildSystemPrompt(input: BuildDeckInput): string {
 }
 
 function buildUserPrompt(input: BuildDeckInput): string {
-  const parts: string[] = [`Build me a ${input.format} deck. Request: ${input.prompt}`];
+  const parts: string[] = [`Build me a ${input.format} deck.`];
+  if (input.prompt) parts.push(`Request: ${input.prompt}`);
   if (input.commanderName) {
     parts.push(`Use "${input.commanderName}" as the commander.`);
+  }
+  if (input.colors?.length) {
+    const names = input.colors.map((c) => COLOR_NAMES[c]).join(", ");
+    parts.push(
+      input.format === "commander"
+        ? `Colours: ${names}. Choose a commander whose colour identity is exactly these colours.`
+        : `Colours: ${names}. Every card's colour identity must be within these colours.`,
+    );
+  }
+  if (input.archetype) {
+    parts.push(`Archetype: ${archetypeBrief(input.archetype)}.`);
   }
   if (input.retryViolations?.length) {
     parts.push(

@@ -147,15 +147,20 @@ Terraform uploads to S3 as individual objects. Three details make it work:
 
 ## Two things to know before you rely on this
 
-**The deck builder is disabled.** `POST /api/decks/build` returns 503 while
-`enable_deck_builder = false` (the default). API Gateway caps every integration
-at 29 seconds and that route is declared `maxDuration = 300`, so a real LLM build
-would return 504 to the client even though the Lambda kept working. Re-enabling
-the flag turns the route back on but does not raise the ceiling; the durable fix
-is an async job - `POST` returns `202 {jobId}`, a worker Lambda does the work, and
-the client polls a status endpoint. `POST /api/collection/import` carries the same
-`maxDuration = 300` declaration and the same exposure on a large CSV, but it stays
-enabled because a small import finishes well inside the limit.
+**The deck builder is off by default.** Both of its routes return 503 while
+`enable_deck_builder = false`. Turning it on needs `anthropic_api_key` too.
+A build takes minutes and API Gateway caps every integration at 29 seconds, so
+it runs as an async job ([`deck_worker.tf`](deck_worker.tf)):
+`POST /api/decks/build` records a `DeckBuildJob` row, invokes the
+`deck-worker` Lambda asynchronously and returns `202 {jobId}`; the page polls
+`GET /api/decks/build/{id}`. The API reaches the Lambda service through the
+same IPv6 egress as Scryfall and Anthropic, via the dual-stack endpoint
+`lambda.<region>.api.aws`, so this needs no NAT or VPC endpoint. That adds a
+third hostname to the AAAA dependency described below. Async retries are off
+(a retry would pay for a build nobody is waiting for), each user can have one
+build in flight, and a job unfinished after 12 minutes reads as failed.
+`POST /api/collection/import` still carries `maxDuration = 300` and is exposed
+to the 29-second limit on a large CSV, but a small import finishes well inside it.
 
 **Callers are authenticated twice.** Every application route requires a Cognito
 access token, which API Gateway's JWT authorizer verifies before the Lambda runs,
@@ -187,8 +192,9 @@ needs to come down further.
 ## Egress without a NAT gateway
 
 A Lambda attached to a VPC has no route to the internet by itself, and the backend
-needs two public APIs: `api.scryfall.com` for card data and `api.anthropic.com`
-for the deck builder. The standard answer is a NAT gateway, which bills ~$32/month
+needs three public endpoints: `api.scryfall.com` for card data,
+`api.anthropic.com` for the deck builder, and the Lambda API (to start the deck
+worker). The standard answer is a NAT gateway, which bills ~$32/month
 in hourly charges before any data processing.
 
 This stack uses an **egress-only internet gateway** instead. It is the IPv6
@@ -200,7 +206,7 @@ AWS charges nothing for it. Three pieces make it work:
 2. The private route table sends `::/0` to the egress-only gateway. There is
    deliberately **no** `0.0.0.0/0` route, so the private subnets have no IPv4 path
    off the VPC at all.
-3. Both Lambda functions set `ipv6_allowed_for_dual_stack = true`, which is what
+3. Every Lambda function sets `ipv6_allowed_for_dual_stack = true`, which is what
    gives their ENIs an IPv6 address.
 
 The functions also run with `NODE_OPTIONS=--dns-result-order=ipv6first`. Node is
@@ -212,15 +218,19 @@ address inside the VPC, which is local routing and needs no gateway.
 
 ### The dependency this creates
 
-Outbound traffic only works for destinations that publish AAAA records. Both do
-today:
+Outbound traffic only works for destinations that publish AAAA records. All three
+do today:
 
 ```
-api.scryfall.com    2606:4700:10::6814:238e   (Cloudflare)
-api.anthropic.com   2607:6bc0::10
+api.scryfall.com          2606:4700:10::6814:238e   (Cloudflare)
+api.anthropic.com         2607:6bc0::10
+lambda.us-west-1.api.aws  2600:1f1c:cc9:6601:...     (dual-stack endpoint)
 ```
 
-If either ever drops IPv6, every call to it fails with a network error and the
+The classic `lambda.<region>.amazonaws.com` endpoint is IPv4-only, which is why
+`src/lib/deckBuildJobs.ts` sets `useDualstackEndpoint: true`.
+
+If any of them ever drops IPv6, every call to it fails with a network error and the
 affected routes break. Two fallbacks, in order of cost:
 
 - **A NAT instance.** A `t4g.nano` running an off-the-shelf NAT AMI restores IPv4

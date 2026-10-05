@@ -1,11 +1,16 @@
-# The backend itself: one deployment package, two functions.
+# The backend itself: one deployment package, three functions.
 #
-# `index.handler` serves the API; `migrate.handler` applies Prisma migrations
-# from inside the VPC. They share a zip because they share the Prisma client and
-# query engine, which is the bulk of its ~23MB.
+# `index.handler` serves the API; `worker.handler` runs deck builds (see
+# deck_worker.tf); `migrate.handler` applies Prisma migrations from inside the
+# VPC. They share a zip because they share the Prisma client and query engine,
+# which is the bulk of its ~23MB.
 
 locals {
   package_dir = "${path.module}/../lambda/dist/package"
+
+  # A plain string rather than a reference to the function, because the shared
+  # environment below names it and the worker itself uses that environment.
+  deck_worker_name = "${local.name}-deck-worker"
 
   # Prisma resolves its native engine relative to the generated client, which
   # works because build.mjs copies the client in as real files rather than
@@ -23,7 +28,9 @@ locals {
     NODE_OPTIONS        = "--dns-result-order=ipv6first"
     ENABLE_DECK_BUILDER = var.enable_deck_builder ? "true" : "false"
     ANTHROPIC_API_KEY   = var.anthropic_api_key
-    API_SHARED_SECRET   = var.api_shared_secret
+    # The API invokes this function to run a queued build.
+    DECK_WORKER_FUNCTION = local.deck_worker_name
+    API_SHARED_SECRET    = var.api_shared_secret
     # API Gateway's JWT authorizer verifies Cognito tokens before invocation;
     # route handlers read the verified user from a header the handler sets.
     AUTH_MODE                           = "gateway"

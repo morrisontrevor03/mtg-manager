@@ -3,7 +3,7 @@
 # HTTP API rather than REST API: it is cheaper (~$1.00 vs $3.50 per million
 # requests), supports the 2.0 payload the handler expects, and has native CORS.
 # Its one hard limit is a 29-second integration timeout, which is why the LLM
-# deck-builder route ships disabled.
+# deck builder runs as an async job on a separate worker (see deck_worker.tf).
 
 locals {
   # Must stay in step with ROUTE_KEYS in lambda/src/routeKeys.ts.
@@ -23,6 +23,7 @@ locals {
 
     "GET /api/decks",
     "POST /api/decks/build",
+    "GET /api/decks/build/{id}",
     "GET /api/decks/{id}",
     "PATCH /api/decks/{id}",
     "DELETE /api/decks/{id}",

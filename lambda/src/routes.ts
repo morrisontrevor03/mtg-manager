@@ -23,21 +23,31 @@ export type RouteContext = { params: Promise<Record<string, string>> };
 export type RouteHandler = (req: Request, ctx: RouteContext) => Promise<Response> | Response;
 
 /**
- * The LLM deck builder is switched off in the deployed backend (see
- * `enable_deck_builder` in infra/variables.tf). It is the one route that cannot
- * fit inside API Gateway's hard 29-second integration timeout, and it is being
- * rebuilt. The real handler is imported lazily so a disabled deployment never
- * constructs the Anthropic client.
+ * The LLM deck builder can be switched off per deployment (`enable_deck_builder`
+ * in infra/variables.tf). These routes only queue and report jobs; the build
+ * itself runs on the worker Lambda (`lambda/src/worker.ts`). The handlers are
+ * imported lazily so a disabled deployment never loads the builder.
  */
+function deckBuilderDisabled(): Response | null {
+  if (process.env.ENABLE_DECK_BUILDER === "true") return null;
+  return serviceUnavailable(
+    "The LLM deck builder is disabled in this deployment. " +
+      "Set enable_deck_builder = true in your Terraform variables to turn it on.",
+  );
+}
+
 const deckBuild: RouteHandler = async (req) => {
-  if (process.env.ENABLE_DECK_BUILDER !== "true") {
-    return serviceUnavailable(
-      "The LLM deck builder is disabled in this deployment. " +
-        "Set enable_deck_builder = true in your Terraform variables to turn it back on.",
-    );
-  }
+  const disabled = deckBuilderDisabled();
+  if (disabled) return disabled;
   const mod = await import("@/app/api/decks/build/route.api");
   return mod.POST(req);
+};
+
+const deckBuildJob: RouteHandler = async (req, ctx) => {
+  const disabled = deckBuilderDisabled();
+  if (disabled) return disabled;
+  const mod = await import("@/app/api/decks/build/[id]/route.api");
+  return mod.GET(req, ctx as { params: Promise<{ id: string }> });
 };
 
 /**
@@ -60,6 +70,7 @@ export const routes: Record<RouteKey, RouteHandler> = {
 
   "GET /api/decks": decks.GET as RouteHandler,
   "POST /api/decks/build": deckBuild,
+  "GET /api/decks/build/{id}": deckBuildJob,
   "GET /api/decks/{id}": deck.GET as RouteHandler,
   "PATCH /api/decks/{id}": deck.PATCH as RouteHandler,
   "DELETE /api/decks/{id}": deck.DELETE as RouteHandler,

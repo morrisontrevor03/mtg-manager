@@ -25,6 +25,7 @@ export const ROUTE_KEYS = [
 
   "GET /api/decks",
   "POST /api/decks/build",
+  "GET /api/decks/build/{id}",
   "GET /api/decks/{id}",
   "PATCH /api/decks/{id}",
   "DELETE /api/decks/{id}",

@@ -3,8 +3,9 @@
 //   node lambda/build.mjs [--arch=arm64|x86_64]
 //
 // Output: lambda/dist/package/ — a directory that `infra/` zips with Terraform's
-// archive_file, so no platform-specific zip tooling is involved. Both Lambda
-// functions (api and migrate) share this one package and differ only in handler.
+// archive_file, so no platform-specific zip tooling is involved. All three Lambda
+// functions (api, deck-worker and migrate) share this one package and differ
+// only in handler.
 
 import { build } from "esbuild";
 import {
@@ -40,15 +41,18 @@ if (!engine) {
 rmSync(join(here, "dist"), { recursive: true, force: true });
 mkdirSync(outDir, { recursive: true });
 
-// --- 1. Bundle the two entry points ---------------------------------------
+// --- 1. Bundle the entry points --------------------------------------------
 //
 // Prisma is marked external and copied in as real files below: the generated
 // client resolves its engine relative to its own directory on disk, which a
-// bundler would break.
+// bundler would break. The AWS SDK is bundled even though the runtime ships v3:
+// the runtime copy is only reachable through NODE_PATH, which the `import()` in
+// deckBuildJobs.ts does not consult, and bundling pins the version we tested.
 
 await build({
   entryPoints: {
     index: join(here, "src", "handler.ts"),
+    worker: join(here, "src", "worker.ts"),
     migrate: join(here, "src", "migrate.ts"),
   },
   outdir: outDir,
