@@ -151,7 +151,12 @@ function buildUserPrompt(input: BuildDeckInput): string {
 export async function buildDeckDraft(input: BuildDeckInput): Promise<DeckDraft> {
   if (!process.env.ANTHROPIC_API_KEY) throw new MissingApiKeyError();
 
-  const client = new Anthropic();
+  // An organization-level key (not scoped to a workspace) must name the
+  // workspace on every request; the SDK has no option for it, only headers.
+  const workspaceId = process.env.ANTHROPIC_WORKSPACE_ID;
+  const client = new Anthropic(
+    workspaceId ? { defaultHeaders: { "anthropic-workspace-id": workspaceId } } : {},
+  );
   const response = await client.messages.parse({
     model: DECK_BUILDER_MODEL,
     max_tokens: 16000,

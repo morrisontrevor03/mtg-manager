@@ -28,6 +28,8 @@ locals {
     NODE_OPTIONS        = "--dns-result-order=ipv6first"
     ENABLE_DECK_BUILDER = var.enable_deck_builder ? "true" : "false"
     ANTHROPIC_API_KEY   = var.anthropic_api_key
+    # Only needed when the key is not scoped to a workspace.
+    ANTHROPIC_WORKSPACE_ID = var.anthropic_workspace_id
     # The API invokes this function to run a queued build.
     DECK_WORKER_FUNCTION = local.deck_worker_name
     API_SHARED_SECRET    = var.api_shared_secret

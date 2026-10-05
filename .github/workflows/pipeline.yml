@@ -142,6 +142,8 @@ jobs:
       TF_IN_AUTOMATION: "1"
       TF_VAR_api_shared_secret: ${{ secrets.API_SHARED_SECRET }}
       TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      # A repository variable, not a secret; empty for a workspace-scoped key.
+      TF_VAR_anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
       TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
     defaults:
       run:
@@ -219,6 +221,8 @@ jobs:
       TF_IN_AUTOMATION: "1"
       TF_VAR_api_shared_secret: ${{ secrets.API_SHARED_SECRET }}
       TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      # A repository variable, not a secret; empty for a workspace-scoped key.
+      TF_VAR_anthropic_workspace_id: ${{ vars.ANTHROPIC_WORKSPACE_ID }}
       TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
     defaults:
       run:

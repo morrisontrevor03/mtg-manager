@@ -182,6 +182,16 @@ variable "anthropic_api_key" {
   sensitive   = true
 }
 
+variable "anthropic_workspace_id" {
+  description = <<-EOT
+    Anthropic workspace id (wrkspc_...), sent as the anthropic-workspace-id
+    header. Only needed when anthropic_api_key is not scoped to a workspace;
+    leave empty for a workspace-scoped key. Not a secret.
+  EOT
+  type        = string
+  default     = ""
+}
+
 variable "deck_worker_timeout_seconds" {
   description = <<-EOT
     Timeout for the deck-builder worker. A build is up to two model calls plus

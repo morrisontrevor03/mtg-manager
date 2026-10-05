@@ -109,6 +109,7 @@ Leave only `api_shared_secret` (and `anthropic_api_key` if set) in
 | --- | --- | --- |
 | Secret | `API_SHARED_SECRET` | the value from `terraform.tfvars` |
 | Secret | `ANTHROPIC_API_KEY` | optional; only used if the deck builder is enabled |
+| Variable | `ANTHROPIC_WORKSPACE_ID` | optional; only if that key is not scoped to a workspace |
 | Secret | `GOOGLE_CLIENT_SECRET` | optional; enables Google sign-in, see [accounts.md](accounts.md) |
 | Variable | `AWS_REGION` | `us-west-1` |
 | Variable | `TF_STATE_BUCKET` | bootstrap output `state_bucket` |
