@@ -188,7 +188,7 @@ export function CollectionList({
               value={c}
               aria-label={c === "M" ? "Multicolour" : `Colour ${c}`}
               title={c === "M" ? "Multicolour" : c === "C" ? "Colourless" : undefined}
-              className="size-7 min-w-7 px-0 opacity-45 transition-opacity hover:bg-transparent hover:opacity-80 data-[state=on]:bg-transparent data-[state=on]:opacity-100"
+              className="size-7 min-w-7 px-0 pointer-coarse:size-10 pointer-coarse:min-w-10 opacity-45 transition-opacity hover:bg-transparent hover:opacity-80 data-[state=on]:bg-transparent data-[state=on]:opacity-100"
             >
               {c === "M" ? (
                 <span
@@ -397,11 +397,11 @@ function CollectionRow({
         className="hidden items-center justify-center gap-0.5 md:flex"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Steppers appear on hover or focus so the column reads as numbers at rest. */}
+        {/* Steppers appear on hover or focus so the column reads as numbers at rest (always shown on touch). */}
         <Button
           variant="ghost"
           size="icon-xs"
-          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
           onClick={() => onQuantity(quantity - 1)}
           aria-label={`Remove one ${r.name}`}
         >
@@ -411,7 +411,7 @@ function CollectionRow({
         <Button
           variant="ghost"
           size="icon-xs"
-          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100"
+          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
           onClick={() => onQuantity(quantity + 1)}
           aria-label={`Add one ${r.name}`}
         >

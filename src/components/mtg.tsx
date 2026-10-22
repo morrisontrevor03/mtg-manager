@@ -11,7 +11,7 @@
  * symbols tinted by rarity, card art, and collector metadata. Pages use these
  * instead of generic chips so the app reads as a card catalogue.
  */
-import type { CSSProperties, ReactNode } from "react";
+import { useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from "react";
 import { cn } from "cn";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -133,6 +133,32 @@ export function SetSymbol({
 }
 
 /**
+ * Hover popovers never open on touch screens, so there the first tap opens the
+ * popover and swallows the tap; a tap while it is open goes through to the
+ * trigger as usual (following its link, opening its row).
+ */
+function useTapToPeek() {
+  const [open, setOpen] = useState(false);
+  // Read at pointerdown: Radix's tooltip closes itself before the click lands.
+  const tap = useRef({ touch: false, wasOpen: false });
+  return {
+    open,
+    onOpenChange: setOpen,
+    triggerProps: {
+      onPointerDown: (e: { pointerType: string }) => {
+        tap.current = { touch: e.pointerType === "touch", wasOpen: open };
+      },
+      onClick: (e: MouseEvent) => {
+        if (!tap.current.touch || tap.current.wasOpen) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setOpen(true);
+      },
+    },
+  };
+}
+
+/**
  * Set symbol + code + collector number, with the set's full name and the
  * rarity on hover. This is how a collector identifies a printing.
  */
@@ -151,9 +177,10 @@ export function Printing({
 }) {
   const sets = useSets();
   const set = sets?.[setCode.toUpperCase()];
+  const peek = useTapToPeek();
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
+    <Tooltip open={peek.open} onOpenChange={peek.onOpenChange}>
+      <TooltipTrigger asChild {...peek.triggerProps}>
         <span
           tabIndex={0}
           className={cn(
@@ -232,7 +259,7 @@ export function CardThumb({
   );
 }
 
-/** Wraps a trigger so hovering it shows the full card face beside it. */
+/** Wraps a trigger so hovering (or first tapping) it shows the full card face beside it. */
 export function CardPreview({
   uri,
   name,
@@ -242,10 +269,13 @@ export function CardPreview({
   name: string;
   children: ReactNode;
 }) {
+  const peek = useTapToPeek();
   if (!uri) return <>{children}</>;
   return (
-    <HoverCard>
-      <HoverCardTrigger asChild>{children}</HoverCardTrigger>
+    <HoverCard open={peek.open} onOpenChange={peek.onOpenChange}>
+      <HoverCardTrigger asChild {...peek.triggerProps}>
+        {children}
+      </HoverCardTrigger>
       <HoverCardContent side="right" align="start" className="w-60">
         <CardThumb
           uri={uri}

@@ -351,6 +351,25 @@ body > * {
   transform: translateY(1px) scale(0.988);
 }
 
+/*
+ * Small controls keep their size on screen but get a 44px hit area on touch
+ * screens. Uses ::before because `sheen` owns ::after.
+ */
+@utility tap-target {
+  @media (pointer: coarse) {
+    position: relative;
+    &::before {
+      content: "";
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 44px);
+      height: max(100%, 44px);
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
 /* A sheen that wipes across the primary button on hover — the one flourish. */
 .sheen {
   position: relative;

@@ -545,7 +545,7 @@ function EntryRow({
             variant="ghost"
             size="xs"
             onClick={onUndo}
-            className="opacity-0 group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100"
+            className="opacity-0 group-hover:opacity-100 hover:text-destructive focus-visible:opacity-100 pointer-coarse:opacity-100"
           >
             Undo
           </Button>
